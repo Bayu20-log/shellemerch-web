@@ -50,6 +50,11 @@
                         Products
                     </a>
                     
+                    <a class="nav-link" href="{{ route('admin.pin-sizes.index') }}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-ruler"></i></div>
+                        Ukuran Pin
+                    </a>
+
                     <a class="nav-link" href="{{ route('admin.news.index') }}">
                        <div class="sb-nav-link-icon"><i class="fas fa-newspaper"></i></div>
                         News

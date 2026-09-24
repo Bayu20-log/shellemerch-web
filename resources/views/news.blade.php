@@ -143,6 +143,7 @@
                     <li class="nav-item"><a class="nav-link {{ request()->routeIs('news.*') ? 'active' : '' }}" href="{{ route('news.index') }}">News</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ route('beranda') }}#sponsors">Sponsors & Partners</a></li>
                     <li class="nav-item"><a class="nav-link" href="#footer">Contact Us</a></li>
+                    @include('Layout.Partial.nav_auth')
                 </ul>
             </div>
         </div>

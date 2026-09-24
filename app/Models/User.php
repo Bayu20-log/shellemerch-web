@@ -18,11 +18,16 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+    // 'role' sengaja TIDAK ada di sini agar tidak bisa diisi dari input pengguna.
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'password',
     ];
+
+    public const ROLE_ADMIN = 'admin';
+    public const ROLE_CUSTOMER = 'customer';
 
     /**
      * The attributes that should be hidden for serialization.
@@ -45,5 +50,15 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
     }
 }
