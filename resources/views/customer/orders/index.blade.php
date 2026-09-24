@@ -34,7 +34,7 @@
                         <td class="text-center">{{ $order->items_count }}</td>
                         <td class="text-end">Rp {{ number_format($order->total, 0, ',', '.') }}</td>
                         <td><span class="badge rounded-pill {{ $order->statusBadgeClass() }}">{{ $order->statusLabel() }}</span></td>
-                        <td class="pe-4 text-end"><a href="{{ route('customer.orders.show', $order) }}" class="btn btn-sm btn-outline-brand">Lihat</a></td>
+                        <td class="pe-4 text-end"><a href="{{ route('customer.orders.show', $order) }}" class="btn btn-sm btn-outline-brand">{{ match($order->status) { 'draft' => 'Lanjutkan', 'menunggu_pembayaran' => 'Bayar', default => 'Lihat' } }}</a></td>
                     </tr>
                 @endforeach
                 </tbody>

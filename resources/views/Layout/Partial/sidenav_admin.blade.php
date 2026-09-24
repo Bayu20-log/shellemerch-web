@@ -38,6 +38,22 @@
                         Dashboard
                     </a>
                     
+                    <div class="sb-sidenav-menu-heading">Transaksi</div>
+
+                    @php $pendingVerification = \App\Models\Order::where('status', 'menunggu_verifikasi')->count(); @endphp
+                    <a class="nav-link" href="{{ route('admin.orders.index') }}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-receipt"></i></div>
+                        Pesanan
+                        @if($pendingVerification > 0)
+                            <span class="badge bg-warning text-dark ms-2" title="Menunggu verifikasi pembayaran">{{ $pendingVerification }}</span>
+                        @endif
+                    </a>
+
+                    <a class="nav-link" href="{{ route('admin.payment.edit') }}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-qrcode"></i></div>
+                        Pembayaran QRIS
+                    </a>
+
                     <div class="sb-sidenav-menu-heading">Manajemen Konten</div>
                     
                     <a class="nav-link" href="{{ route('admin.heroes.index') }}">

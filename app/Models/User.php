@@ -57,6 +57,22 @@ class User extends Authenticatable
         return $this->role === self::ROLE_ADMIN;
     }
 
+    // Tautan WhatsApp dari nomor HP (08xx / 8xx / +62xx -> 62xx). Null jika nomor kosong.
+    public function whatsappUrl(): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $this->phone);
+        if ($digits === '') {
+            return null;
+        }
+        if (str_starts_with($digits, '0')) {
+            $digits = '62' . substr($digits, 1);
+        } elseif (str_starts_with($digits, '8')) {
+            $digits = '62' . $digits;
+        }
+
+        return 'https://wa.me/' . $digits;
+    }
+
     public function orders()
     {
         return $this->hasMany(Order::class);

@@ -4,6 +4,12 @@
 <a href="{{ route('customer.orders.index') }}" class="text-decoration-none small" style="color: #2A6CA2;">&larr; Pesanan saya</a>
 <h1 class="h3 page-title mt-2 mb-4">Tambah item pin custom</h1>
 
+@if($waitingOrder)
+    <div class="alert alert-info">
+        Pesanan <strong>{{ $waitingOrder->order_code }}</strong> sedang menunggu pembayaran. Jika Anda menambah item, pesanan itu kembali ke draft dan Anda perlu melanjutkan ke pembayaran lagi.
+    </div>
+@endif
+
 @if($sizes->isEmpty())
     <div class="panel p-5 text-center">
         <p class="fw-semibold mb-1">Ukuran pin belum tersedia</p>

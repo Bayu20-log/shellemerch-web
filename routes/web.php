@@ -9,6 +9,8 @@ use App\Http\Controllers\Admin\NewsController;
 use App\Http\Controllers\Admin\SponsorController;
 use App\Http\Controllers\Admin\KontakController;
 use App\Http\Controllers\Admin\PinSizeController;
+use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\PaymentSettingController;
 use App\Http\Controllers\Customer\OrderController;
 use App\Models\Product;
 use App\Models\News;
@@ -46,6 +48,11 @@ Route::middleware('auth')->prefix('pesanan')->name('customer.orders.')->group(fu
     Route::get('/{order}', [OrderController::class, 'show'])->whereNumber('order')->name('show');
     Route::delete('/{order}/item/{item}', [OrderController::class, 'destroyItem'])->whereNumber(['order', 'item'])->name('items.destroy');
     Route::get('/{order}/item/{item}/desain', [OrderController::class, 'design'])->whereNumber(['order', 'item'])->name('items.design');
+    Route::post('/{order}/checkout', [OrderController::class, 'checkout'])->whereNumber('order')->name('checkout');
+    Route::post('/{order}/ubah', [OrderController::class, 'reopen'])->whereNumber('order')->name('reopen');
+    Route::post('/{order}/bayar', [OrderController::class, 'uploadProof'])->whereNumber('order')->name('pay');
+    Route::post('/{order}/batal', [OrderController::class, 'cancel'])->whereNumber('order')->name('cancel');
+    Route::get('/{order}/bukti', [OrderController::class, 'proof'])->whereNumber('order')->name('proof');
 });
 
 // 3. Route Admin Panel (DIKUNCI: harus login DAN berperan admin)
@@ -71,6 +78,15 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::resource('admin/products', App\Http\Controllers\Admin\ProductController::class, ['as' => 'admin']);
     Route::resource('admin/news', App\Http\Controllers\Admin\NewsController::class, ['as' => 'admin']);
     Route::resource('admin/sponsors', App\Http\Controllers\Admin\SponsorController::class, ['as' => 'admin']);
+
+    // Pesanan masuk: verifikasi pembayaran & perubahan status
+    Route::get('admin/orders', [AdminOrderController::class, 'index'])->name('admin.orders.index');
+    Route::get('admin/orders/{order}', [AdminOrderController::class, 'show'])->whereNumber('order')->name('admin.orders.show');
+    Route::post('admin/orders/{order}/aksi', [AdminOrderController::class, 'transition'])->whereNumber('order')->name('admin.orders.transition');
+
+    // Pengaturan QRIS toko
+    Route::get('admin/pembayaran', [PaymentSettingController::class, 'edit'])->name('admin.payment.edit');
+    Route::put('admin/pembayaran', [PaymentSettingController::class, 'update'])->name('admin.payment.update');
 
     // Ukuran & harga pin custom
     Route::resource('admin/pin-sizes', PinSizeController::class, ['as' => 'admin'])
