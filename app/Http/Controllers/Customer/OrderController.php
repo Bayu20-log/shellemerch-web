@@ -101,7 +101,7 @@ class OrderController extends Controller
 
         $qris = [
             'ready' => Setting::qrisConfigured(),
-            'image' => Setting::get('qris_image'),
+            'url' => route('qris.image', ['v' => Setting::qrisVersion()]),
             'merchant' => Setting::get('qris_merchant'),
         ];
 

@@ -147,7 +147,7 @@
         <div class="row g-4 align-items-center">
             <div class="col-md-5 text-center">
                 @if($qris['ready'])
-                    <img src="{{ asset('storage/' . $qris['image']) }}" class="qris-img" alt="QRIS pembayaran Shellemerch">
+                    <img src="{{ $qris['url'] }}" class="qris-img" alt="QRIS pembayaran Shellemerch">
                     @if($qris['merchant'])<div class="small text-muted mt-2">Atas nama {{ $qris['merchant'] }}</div>@endif
                 @else
                     <div class="alert alert-warning mb-0">QRIS sedang tidak tersedia. Silakan hubungi kami lewat WhatsApp.</div>

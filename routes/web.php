@@ -11,6 +11,8 @@ use App\Http\Controllers\Admin\KontakController;
 use App\Http\Controllers\Admin\PinSizeController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\PaymentSettingController;
+use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\QrisController;
 use App\Http\Controllers\Customer\OrderController;
 use App\Models\Product;
 use App\Models\News;
@@ -39,6 +41,9 @@ Route::post('/login', [AuthController::class, 'authenticate'])->middleware('thro
 Route::get('/daftar', [AuthController::class, 'showRegisterForm'])->name('register');
 Route::post('/daftar', [AuthController::class, 'register'])->middleware('throttle:6,1')->name('register.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Gambar QRIS toko (harus login; tanpa symlink storage)
+Route::get('/qris', [QrisController::class, 'show'])->middleware('auth')->name('qris.image');
 
 // 2b. Area Pelanggan (harus login). Pelanggan hanya bisa melihat pesanannya sendiri.
 Route::middleware('auth')->prefix('pesanan')->name('customer.orders.')->group(function () {
@@ -81,8 +86,12 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     // Pesanan masuk: verifikasi pembayaran & perubahan status
     Route::get('admin/orders', [AdminOrderController::class, 'index'])->name('admin.orders.index');
+    Route::get('admin/orders/export', [AdminOrderController::class, 'export'])->name('admin.orders.export');
     Route::get('admin/orders/{order}', [AdminOrderController::class, 'show'])->whereNumber('order')->name('admin.orders.show');
     Route::post('admin/orders/{order}/aksi', [AdminOrderController::class, 'transition'])->whereNumber('order')->name('admin.orders.transition');
+
+    // Laporan & tren penjualan
+    Route::get('admin/laporan', [ReportController::class, 'index'])->name('admin.reports.index');
 
     // Pengaturan QRIS toko
     Route::get('admin/pembayaran', [PaymentSettingController::class, 'edit'])->name('admin.payment.edit');

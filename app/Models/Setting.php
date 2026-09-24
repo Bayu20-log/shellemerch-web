@@ -22,6 +22,12 @@ class Setting extends Model
         static::updateOrCreate(['key' => $key], ['value' => $value]);
     }
 
+    // Penanda versi untuk memaksa browser memuat ulang gambar saat QRIS diganti.
+    public static function qrisVersion(): int
+    {
+        return static::find('qris_image')?->updated_at?->timestamp ?? 0;
+    }
+
     // QRIS dianggap siap jika gambarnya sudah diunggah dan filenya benar-benar ada.
     public static function qrisConfigured(): bool
     {

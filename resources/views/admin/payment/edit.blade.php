@@ -8,8 +8,8 @@
         <div class="card-body">
             <p class="small text-secondary">Gambar ini ditampilkan kepada pelanggan saat membayar. Pelanggan belum bisa lanjut ke pembayaran sebelum QRIS diunggah.</p>
 
-            @if($qrisImage)
-                <img src="{{ asset('storage/' . $qrisImage) }}" alt="QRIS saat ini" style="max-width: 220px; border: 1px solid #dee2e6; border-radius: 8px; padding: 6px;" class="mb-3 d-block">
+            @if($qrisUrl)
+                <img src="{{ $qrisUrl }}" alt="QRIS saat ini" style="max-width: 220px; border: 1px solid #dee2e6; border-radius: 8px; padding: 6px;" class="mb-3 d-block">
             @else
                 <div class="alert alert-warning py-2 small">QRIS belum diunggah.</div>
             @endif
@@ -18,8 +18,8 @@
                 @csrf
                 @method('PUT')
                 <div class="mb-3">
-                    <label class="form-label" for="qris">{{ $qrisImage ? 'Ganti gambar QRIS' : 'Gambar QRIS' }}</label>
-                    <input id="qris" type="file" name="qris" class="form-control @error('qris') is-invalid @enderror" accept="image/jpeg,image/png,image/webp" {{ $qrisImage ? '' : 'required' }}>
+                    <label class="form-label" for="qris">{{ $qrisUrl ? 'Ganti gambar QRIS' : 'Gambar QRIS' }}</label>
+                    <input id="qris" type="file" name="qris" class="form-control @error('qris') is-invalid @enderror" accept="image/jpeg,image/png,image/webp" {{ $qrisUrl ? '' : 'required' }}>
                     @error('qris')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     <div class="form-text">JPG, PNG, atau WEBP, maksimal 4 MB.</div>
                 </div>

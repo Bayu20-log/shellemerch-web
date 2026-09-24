@@ -63,7 +63,7 @@ class PaymentFlowTest extends TestCase
 
         $this->assertSame('menunggu_pembayaran', $order->fresh()->status);
         $this->actingAs($user)->get(route('customer.orders.show', $order))
-            ->assertOk()->assertSee('Bayar dengan QRIS')->assertSee('Rp 15.000')->assertSee('storage/qris/qris.png', false);
+            ->assertOk()->assertSee('Bayar dengan QRIS')->assertSee('Rp 15.000')->assertSee(url('/qris'), false)->assertDontSee('storage/qris', false);
     }
 
     public function test_checkout_needs_items_and_qris(): void
@@ -246,6 +246,24 @@ class PaymentFlowTest extends TestCase
         $order->forceFill(['status' => 'diambil'])->save();
         $this->expectException(InvalidOrderTransition::class);
         $order->transitionTo('draft');
+    }
+
+    public function test_qris_image_is_served_through_a_route_without_storage_symlink(): void
+    {
+        $customer = User::factory()->create();
+
+        $this->actingAs($customer)->get(route('qris.image'))->assertNotFound();   // belum diunggah
+
+        Storage::disk('public')->put('qris/asli.png', 'ISI-QRIS');
+        Setting::put('qris_image', 'qris/asli.png');
+
+        $response = $this->actingAs($customer)->get(route('qris.image', ['v' => Setting::qrisVersion()]));
+        $response->assertOk();
+        $this->assertSame('ISI-QRIS', $response->streamedContent());
+        $this->assertSame('nosniff', $response->headers->get('X-Content-Type-Options'));
+
+        auth()->logout();
+        $this->get(route('qris.image'))->assertRedirect('/login');
     }
 
     public function test_whatsapp_url_normalizes_indonesian_numbers(): void

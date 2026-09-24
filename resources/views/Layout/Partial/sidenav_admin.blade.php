@@ -49,6 +49,11 @@
                         @endif
                     </a>
 
+                    <a class="nav-link" href="{{ route('admin.reports.index') }}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-chart-line"></i></div>
+                        Laporan
+                    </a>
+
                     <a class="nav-link" href="{{ route('admin.payment.edit') }}">
                         <div class="sb-nav-link-icon"><i class="fas fa-qrcode"></i></div>
                         Pembayaran QRIS

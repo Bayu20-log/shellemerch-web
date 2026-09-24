@@ -12,7 +12,7 @@ class PaymentSettingController extends Controller
     public function edit()
     {
         return view('admin.payment.edit', [
-            'qrisImage' => Setting::qrisConfigured() ? Setting::get('qris_image') : null,
+            'qrisUrl' => Setting::qrisConfigured() ? route('qris.image', ['v' => Setting::qrisVersion()]) : null,
             'merchant' => Setting::get('qris_merchant'),
         ]);
     }
