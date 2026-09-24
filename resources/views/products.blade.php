@@ -155,6 +155,7 @@
                     
                     <li class="nav-item"><a class="nav-link" href="{{ route('beranda') }}#sponsors">Sponsors & Partners</a></li>
                     <li class="nav-item"><a class="nav-link" href="#footer">Contact Us</a></li>
+                    @include('Layout.Partial.nav_auth')
                 </ul>
             </div>
         </div>
@@ -218,7 +219,7 @@
                                 <p class="text-secondary small mb-2" style="line-height: 1.4;">{{ Str::limit($product->description, 60) }}</p>
                             </div>
                             <span class="fw-bold d-block mt-2" style="color: #2A6CA2; font-size: 0.95rem;">Rp {{ number_format($product->price, 0, ',', '.') }}</span>
-                            <a href="https://wa.me/6282320493612?text=Halo%20admin%20Shell%20e%20Merch{{ rawurlencode($product->name) }}" target="_blank" class="btn-cart shadow-sm">Beli via WhatsApp</a>
+                            <a href="{{ route('customer.orders.create', ['product' => $product->id]) }}" class="btn-cart shadow-sm">Pesan</a>
                         </div>
                     </div>
                     @empty

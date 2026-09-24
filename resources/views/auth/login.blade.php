@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Login Admin - Shellemerch</title>
+    <title>Masuk - Shellemerch</title>
     <link rel="icon" type="image/png" href="{{ asset('assets/img/Group.png') }}">
     
     <link href="{{ asset('assets/vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
@@ -45,8 +45,12 @@
                 <div class="card login-card p-4">
                     <div class="text-center mb-4 mt-2">
                         <img src="{{ asset('assets/img/Group.png') }}" alt="Logo" style="height: 60px; object-fit: contain;">
-                        <h5 class="mt-3 fw-bold text-dark">Login Admin</h5>
+                        <h5 class="mt-3 fw-bold text-dark">Masuk ke Akun</h5>
                     </div>
+
+                    @if(session('success'))
+                        <div class="alert alert-success py-2 text-center" style="font-size: 14px; border-radius: 10px;">{{ session('success') }}</div>
+                    @endif
 
                     @if($errors->any())
                         <div class="alert alert-danger py-2 text-sm text-center" style="font-size: 14px; border-radius: 10px;">
@@ -64,12 +68,17 @@
                             <label class="form-label text-muted small fw-bold ms-2">Password</label>
                             <input type="password" name="password" class="form-control" placeholder="Masukkan password..." required>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 shadow-sm">Masuk Sistem</button>
+                        <button type="submit" class="btn btn-primary w-100 shadow-sm">Masuk</button>
                     </form>
                     
-                    <div class="text-center mt-4 mb-2">
+                    <div class="text-center mt-4" style="font-size: 14px;">
+                        <span class="text-muted">Belum punya akun?</span>
+                        <a href="{{ route('register') }}" class="fw-semibold text-decoration-none" style="color: #2A6CA2;">Daftar</a>
+                    </div>
+
+                    <div class="text-center mt-3 mb-2">
                         <a href="{{ url('/') }}" class="text-decoration-none text-muted" style="font-size: 13px;">
-                            &larr; Kembali ke Landing Page
+                            &larr; Kembali ke beranda
                         </a>
                     </div>
                 </div>
