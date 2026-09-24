@@ -51,6 +51,9 @@ Route::middleware('auth')->prefix('pesanan')->name('customer.orders.')->group(fu
 // 3. Route Admin Panel (DIKUNCI: harus login DAN berperan admin)
 // Pelanggan yang sudah login tetap tidak bisa masuk ke route di dalam kotak ini
 Route::middleware(['auth', 'admin'])->group(function () {
+
+    // Pintu masuk admin: ketik /admin di browser (tidak ada tautannya di navbar publik)
+    Route::redirect('/admin', '/admin/dashboard');
     
     // Dashboard
     Route::get('/admin/dashboard', function () {

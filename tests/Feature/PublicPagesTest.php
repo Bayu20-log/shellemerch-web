@@ -20,15 +20,37 @@ class PublicPagesTest extends TestCase
         }
     }
 
-    public function test_public_pages_show_orders_link_to_customers_and_dashboard_to_admins(): void
+    public function test_customer_sees_orders_link_and_no_login_button(): void
     {
         $customer = User::factory()->create();
-        $admin = User::factory()->admin()->create();
 
         foreach (self::PAGES as $url) {
-            $this->actingAs($customer)->get($url)->assertOk()->assertSee('Pesanan Saya');
-            $this->actingAs($admin)->get($url)->assertOk()->assertSee('Dashboard');
+            $this->actingAs($customer)->get($url)->assertOk()
+                ->assertSee('Pesanan Saya')
+                ->assertDontSee('>Masuk<', false);
         }
+    }
+
+    public function test_navbar_never_links_to_admin_dashboard(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $customer = User::factory()->create();
+
+        foreach (self::PAGES as $url) {
+            $this->get($url)->assertOk()->assertDontSee('/admin');
+            $this->actingAs($customer)->get($url)->assertOk()->assertDontSee('/admin');
+            $this->actingAs($admin)->get($url)->assertOk()
+                ->assertDontSee('/admin')
+                ->assertDontSee('Pesanan Saya')
+                ->assertDontSee('>Masuk<', false);
+        }
+    }
+
+    public function test_admin_entry_point_is_slash_admin(): void
+    {
+        $this->get('/admin')->assertRedirect('/login');
+        $this->actingAs(User::factory()->create())->get('/admin')->assertForbidden();
+        $this->actingAs(User::factory()->admin()->create())->get('/admin')->assertRedirect('/admin/dashboard');
     }
 
     public function test_product_button_goes_to_order_form_with_reference(): void
