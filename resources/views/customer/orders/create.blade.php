@@ -1,8 +1,18 @@
 @extends('Layout.customer')
-@section('title', 'Tambah item pesanan')
+@section('title', isset($lockedProduct) ? 'Pesan ' . $reference->name : 'Tambah item pesanan')
 @section('content')
 <a href="{{ route('customer.orders.index') }}" class="text-decoration-none small" style="color: #2A6CA2;">&larr; Pesanan saya</a>
-<h1 class="h3 page-title mt-2 mb-4">Tambah item pin custom</h1>
+<h1 class="h3 page-title mt-2 mb-4">{{ isset($lockedProduct) ? 'Pesan ' . $reference->name : 'Tambah item pin custom' }}</h1>
+
+@if(isset($lockedProduct))
+    <div class="panel p-3 mb-4 d-flex align-items-center gap-3">
+        <img src="{{ asset('storage/' . $reference->image) }}" alt="{{ $reference->name }}" class="rounded" style="width: 56px; height: 56px; object-fit: cover;">
+        <div>
+            <div class="fw-semibold">{{ $reference->name }}</div>
+            <div class="small text-muted">Rp {{ number_format($reference->price, 0, ',', '.') }} &middot; pilih ukuran di bawah untuk pesan produk ini</div>
+        </div>
+    </div>
+@endif
 
 @if($waitingOrder)
     <div class="alert alert-info">
@@ -25,10 +35,16 @@
             <div class="d-grid gap-2">
                 @foreach($sizes as $size)
                     <div>
-                        <input type="radio" class="btn-check" name="pin_size_id" id="size-{{ $size->id }}" value="{{ $size->id }}" @checked(old('pin_size_id') == $size->id) required>
-                        <label class="size-option" for="size-{{ $size->id }}">
+                        <input type="radio" class="btn-check" name="pin_size_id" id="size-{{ $size->id }}" value="{{ $size->id }}"
+                            @checked(old('pin_size_id') == $size->id) @disabled(! $size->isOrderable()) required>
+                        <label class="size-option {{ ! $size->isOrderable() ? 'opacity-50' : '' }}" for="size-{{ $size->id }}">
                             <span class="fw-medium">{{ $size->name }}</span>
-                            <span class="text-muted">Rp {{ number_format($size->price, 0, ',', '.') }} / pcs</span>
+                            <span class="d-flex align-items-center gap-2">
+                                @unless($size->isOrderable())
+                                    <span class="badge rounded-pill {{ $size->availabilityBadgeClass() }}">{{ $size->availabilityLabel() }}</span>
+                                @endunless
+                                <span class="text-muted">Rp {{ number_format($size->price, 0, ',', '.') }} / pcs</span>
+                            </span>
                         </label>
                     </div>
                 @endforeach

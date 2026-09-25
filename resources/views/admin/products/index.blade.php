@@ -17,6 +17,7 @@
                                     <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Gambar</th>
                                     <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Nama Produk</th>
                                     <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Harga</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Status</th>
                                     <th class="text-secondary opacity-7">Aksi</th>
                                 </tr>
                             </thead>
@@ -30,6 +31,7 @@
                                     </td>
                                     <td class="align-middle"><p class="text-sm font-weight-bold mb-0">{{ $item->name }}</p></td>
                                     <td class="align-middle"><p class="text-sm font-weight-bold mb-0 text-primary">Rp {{ number_format($item->price, 0, ',', '.') }}</p></td>
+                                    <td class="align-middle ps-2"><span class="badge rounded-pill {{ $item->availabilityBadgeClass() }}">{{ $item->availabilityLabel() }}</span></td>
                                     <td class="align-middle">
                                         <a href="{{ route('admin.products.edit', $item->id) }}" class="text-secondary font-weight-bold text-xs" data-toggle="tooltip" data-original-title="Edit user">
                                             Edit

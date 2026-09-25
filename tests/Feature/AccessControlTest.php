@@ -12,7 +12,7 @@ class AccessControlTest extends TestCase
 
     public function test_guest_is_redirected_to_login_from_admin_and_customer_areas(): void
     {
-        $this->get('/admin/dashboard')->assertRedirect('/login');
+        $this->get('/admin/dashboard')->assertRedirect('/admin/login');
         $this->get('/pesanan')->assertRedirect('/login');
     }
 
@@ -38,12 +38,21 @@ class AccessControlTest extends TestCase
         $admin = User::factory()->admin()->create(['email' => 'a@example.com']);
         $customer = User::factory()->create(['email' => 'c@example.com']);
 
-        $this->post('/login', ['email' => 'a@example.com', 'password' => 'password'])
+        // Admin login lewat /admin/login; tidak bisa lewat /login (pesan sama seperti akun tidak ada)
+        $this->post('/admin/login', ['email' => 'a@example.com', 'password' => 'password'])
             ->assertRedirect(route('admin.dashboard'));
         auth()->logout();
+        $this->from('/login')->post('/login', ['email' => 'a@example.com', 'password' => 'password'])
+            ->assertSessionHasErrors('email');
+        $this->assertGuest();
 
+        // Pelanggan login lewat /login; tidak bisa lewat /admin/login
         $this->post('/login', ['email' => 'c@example.com', 'password' => 'password'])
             ->assertRedirect(route('customer.orders.index'));
+        auth()->logout();
+        $this->from('/admin/login')->post('/admin/login', ['email' => 'c@example.com', 'password' => 'password'])
+            ->assertSessionHasErrors('email');
+        $this->assertGuest();
     }
 
     public function test_wrong_password_is_rejected(): void

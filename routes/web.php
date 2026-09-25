@@ -38,6 +38,8 @@ Route::get('/news/{id}', [LandingPageController::class, 'newsDetail'])->name('ne
 // 2. Route Login, Registrasi & Logout
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'authenticate'])->middleware('throttle:6,1')->name('login.post');
+Route::get('/admin/login', [AuthController::class, 'showAdminLoginForm'])->name('admin.login');
+Route::post('/admin/login', [AuthController::class, 'authenticateAdmin'])->middleware('throttle:6,1')->name('admin.login.post');
 Route::get('/daftar', [AuthController::class, 'showRegisterForm'])->name('register');
 Route::post('/daftar', [AuthController::class, 'register'])->middleware('throttle:6,1')->name('register.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -49,6 +51,8 @@ Route::get('/qris', [QrisController::class, 'show'])->middleware('auth')->name('
 Route::middleware('auth')->prefix('pesanan')->name('customer.orders.')->group(function () {
     Route::get('/', [OrderController::class, 'index'])->name('index');
     Route::get('/baru', [OrderController::class, 'create'])->name('create');
+    Route::get('/produk', [OrderController::class, 'products'])->name('products');
+    Route::get('/produk/{product}', [OrderController::class, 'createProduct'])->whereNumber('product')->name('create.product');
     Route::post('/item', [OrderController::class, 'storeItem'])->name('items.store');
     Route::get('/{order}', [OrderController::class, 'show'])->whereNumber('order')->name('show');
     Route::delete('/{order}/item/{item}', [OrderController::class, 'destroyItem'])->whereNumber(['order', 'item'])->name('items.destroy');

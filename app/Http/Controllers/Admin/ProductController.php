@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Storage;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
@@ -31,7 +32,8 @@ class ProductController extends Controller
             'name' => 'required',
             'price' => 'required|numeric',
             'image' => 'required|image|mimes:jpeg,png,jpg|max:2048', // Maksimal 2MB
-            'description' => 'nullable'
+            'description' => 'nullable',
+            'availability' => ['required', Rule::in([Product::AVAILABLE, Product::SOLD_OUT, Product::COMING_SOON])],
         ]);
 
         // 2. Proses upload gambar ke folder public/storage/products
@@ -42,7 +44,8 @@ class ProductController extends Controller
             'name' => $request->name,
             'price' => $request->price,
             'image' => $imagePath,
-            'description' => $request->description
+            'description' => $request->description,
+            'availability' => $request->availability,
         ]);
 
         // 4. Kembalikan ke halaman daftar produk
@@ -70,11 +73,12 @@ class ProductController extends Controller
             'name' => 'required',
             'price' => 'required|numeric',
             'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'description' => 'nullable'
+            'description' => 'nullable',
+            'availability' => ['required', Rule::in([Product::AVAILABLE, Product::SOLD_OUT, Product::COMING_SOON])],
         ]);
 
         // 2. Siapkan data yang akan diupdate
-        $data = $request->only(['name', 'price', 'description']);
+        $data = $request->only(['name', 'price', 'description', 'availability']);
 
         // 3. Cek apakah user mengupload gambar baru
         if ($request->hasFile('image')) {

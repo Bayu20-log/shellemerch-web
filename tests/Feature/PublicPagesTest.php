@@ -48,9 +48,15 @@ class PublicPagesTest extends TestCase
 
     public function test_admin_entry_point_is_slash_admin(): void
     {
-        $this->get('/admin')->assertRedirect('/login');
+        $this->get('/admin')->assertRedirect('/admin/login');
         $this->actingAs(User::factory()->create())->get('/admin')->assertForbidden();
         $this->actingAs(User::factory()->admin()->create())->get('/admin')->assertRedirect('/admin/dashboard');
+    }
+
+    public function test_admin_and_customer_logins_are_separate(): void
+    {
+        $this->get('/admin/login')->assertOk()->assertSee('Login Admin')->assertDontSee('Belum punya akun');
+        $this->get('/login')->assertOk()->assertSee('Masuk ke Akun')->assertSee('Belum punya akun');
     }
 
     public function test_product_button_goes_to_order_form_with_reference(): void
@@ -58,8 +64,19 @@ class PublicPagesTest extends TestCase
         $product = Product::create(['image' => 'x.jpg', 'name' => 'Pin Enamel', 'price' => 10000, 'description' => 'tes']);
 
         $this->get('/products')->assertOk()
-            ->assertSee(route('customer.orders.create', ['product' => $product->id]), false);
+            ->assertSee(route('customer.orders.create.product', $product), false);
 
-        $this->get(route('customer.orders.create', ['product' => $product->id]))->assertRedirect('/login');
+        $this->get(route('customer.orders.create.product', $product))->assertRedirect('/login');
+    }
+
+    public function test_sold_out_and_coming_soon_products_show_badge_and_no_order_button(): void
+    {
+        $soldOut = Product::create(['image' => 'x.jpg', 'name' => 'Habis Stok', 'price' => 10000, 'availability' => 'habis']);
+        $comingSoon = Product::create(['image' => 'x.jpg', 'name' => 'Akan Datang', 'price' => 10000, 'availability' => 'segera']);
+
+        $response = $this->get('/products')->assertOk();
+        $response->assertSee('Habis')->assertSee('Segera hadir');
+        $response->assertDontSee(route('customer.orders.create.product', $soldOut), false);
+        $response->assertDontSee(route('customer.orders.create.product', $comingSoon), false);
     }
 }

@@ -330,7 +330,10 @@
                         @foreach($products as $product)
                         <div class="swiper-slide h-auto">
                             <div class="card h-100 pb-3 hover-lift border-0 shadow-sm">
-                                <div class="produk-img-container">
+                                <div class="produk-img-container position-relative">
+                                    @if($product->availability !== 'tersedia')
+                                        <span class="badge rounded-pill {{ $product->availabilityBadgeClass() }} position-absolute" style="top: 10px; right: 10px; z-index: 2;">{{ $product->availabilityLabel() }}</span>
+                                    @endif
                                     <img src="{{ asset('storage/' . $product->image) }}" class="produk-card-img" alt="{{ $product->name }}">
                                 </div>
                                 <div class="card-body p-4 d-flex flex-column text-start">

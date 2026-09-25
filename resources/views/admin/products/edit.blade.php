@@ -21,6 +21,14 @@
                             <input type="number" class="form-control" id="price" name="price" value="{{ $product->price }}" required>
                         </div>
                         <div class="mb-3">
+                            <label for="availability" class="form-label">Status stok</label>
+                            <select class="form-select" id="availability" name="availability">
+                                @foreach(\App\Models\Product::AVAILABILITY_LABELS as $val => $label)
+                                    <option value="{{ $val }}" @selected(old('availability', $product->availability) === $val)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="mb-3">
                             <label for="image" class="form-label">Gambar Produk Baru (Kosongkan jika tidak ingin mengganti gambar)</label>
                             <br>
                             <img id="imagePreview" src="{{ asset('storage/' . $product->image) }}" alt="Gambar Produk" class="img-thumbnail mb-2" style="max-height: 200px;">

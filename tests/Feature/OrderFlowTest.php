@@ -206,16 +206,19 @@ class OrderFlowTest extends TestCase
         $this->actingAs($customer)->post(route('admin.pin-sizes.store'), ['name' => 'X', 'price' => 1])->assertForbidden();
         $this->assertSame(0, PinSize::count());
 
-        $this->actingAs($admin)->post(route('admin.pin-sizes.store'), ['name' => 'Kecil', 'price' => 5000, 'is_active' => 1])->assertRedirect();
+        $this->actingAs($admin)->post(route('admin.pin-sizes.store'), ['name' => 'Kecil', 'price' => 5000, 'is_active' => 1, 'availability' => 'tersedia'])->assertRedirect();
         $size = PinSize::firstOrFail();
         $this->assertTrue($size->is_active);
+        $this->assertSame('tersedia', $size->availability);
 
-        $this->actingAs($admin)->put(route('admin.pin-sizes.update', $size), ['name' => 'Kecil+', 'price' => 6000, 'is_active' => 0]);
+        $this->actingAs($admin)->put(route('admin.pin-sizes.update', $size), ['name' => 'Kecil+', 'price' => 6000, 'is_active' => 0, 'availability' => 'habis']);
         $size->refresh();
         $this->assertSame(6000, $size->price);
         $this->assertFalse($size->is_active);
+        $this->assertSame('habis', $size->availability);
 
-        $this->actingAs($admin)->post(route('admin.pin-sizes.store'), ['name' => '', 'price' => -5])->assertSessionHasErrors(['name', 'price']);
+        $this->actingAs($admin)->post(route('admin.pin-sizes.store'), ['name' => '', 'price' => -5, 'availability' => 'tersedia'])->assertSessionHasErrors(['name', 'price']);
+        $this->actingAs($admin)->post(route('admin.pin-sizes.store'), ['name' => 'X', 'price' => 1, 'availability' => 'bukan-pilihan'])->assertSessionHasErrors('availability');
 
         $this->actingAs($admin)->delete(route('admin.pin-sizes.destroy', $size));
         $this->assertSame(0, PinSize::count());

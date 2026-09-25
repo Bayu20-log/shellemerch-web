@@ -1,5 +1,6 @@
 @extends('Layout.main')
 @section('content')
+@php $opts = \App\Models\PinSize::AVAILABILITY_LABELS; @endphp
 <div class="container-fluid py-4">
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
@@ -13,7 +14,7 @@
         <div class="card-body">
             <form action="{{ route('admin.pin-sizes.store') }}" method="POST" class="row g-2 align-items-end">
                 @csrf
-                <div class="col-md-5">
+                <div class="col-md-4">
                     <label class="form-label small" for="new-name">Nama ukuran</label>
                     <input id="new-name" type="text" name="name" class="form-control" maxlength="100" required>
                 </div>
@@ -21,12 +22,13 @@
                     <label class="form-label small" for="new-price">Harga per pcs (Rp)</label>
                     <input id="new-price" type="number" name="price" class="form-control" min="0" required>
                 </div>
-                <div class="col-md-2">
-                    <div class="form-check mb-2">
-                        <input type="hidden" name="is_active" value="0">
-                        <input id="new-active" type="checkbox" name="is_active" value="1" class="form-check-input" checked>
-                        <label class="form-check-label" for="new-active">Aktif</label>
-                    </div>
+                <div class="col-md-3">
+                    <label class="form-label small" for="new-availability">Status stok</label>
+                    <select id="new-availability" name="availability" class="form-select">
+                        @foreach($opts as $val => $label)
+                            <option value="{{ $val }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
                 </div>
                 <div class="col-md-2"><button type="submit" class="btn btn-primary w-100">Tambah</button></div>
             </form>
@@ -34,7 +36,10 @@
     </div>
 
     <div class="card mb-4">
-        <div class="card-header pb-0"><h6>Ukuran & harga pin custom</h6></div>
+        <div class="card-header pb-0">
+            <h6>Ukuran & harga pin custom</h6>
+            <p class="text-xs text-secondary mb-0">Pelanggan hanya bisa memesan ukuran berstatus "Tersedia". "Segera hadir" tetap tampil sebagai pratinjau tapi tidak bisa dipesan.</p>
+        </div>
         <div class="card-body px-0 pt-0 pb-2">
             <div class="table-responsive">
                 <table class="table align-items-center mb-0">
@@ -42,7 +47,7 @@
                         <tr>
                             <th class="ps-3">Nama ukuran</th>
                             <th>Harga per pcs (Rp)</th>
-                            <th>Aktif</th>
+                            <th>Status stok</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -58,8 +63,11 @@
                             </td>
                             <td><input form="upd-{{ $size->id }}" type="number" name="price" value="{{ $size->price }}" class="form-control form-control-sm" min="0" required aria-label="Harga per pcs"></td>
                             <td>
-                                <input form="upd-{{ $size->id }}" type="hidden" name="is_active" value="0">
-                                <input form="upd-{{ $size->id }}" type="checkbox" name="is_active" value="1" class="form-check-input" @checked($size->is_active) aria-label="Aktif">
+                                <select form="upd-{{ $size->id }}" name="availability" class="form-select form-select-sm" aria-label="Status stok">
+                                    @foreach($opts as $val => $label)
+                                        <option value="{{ $val }}" @selected($size->availability === $val)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
                             </td>
                             <td class="text-nowrap">
                                 <button form="upd-{{ $size->id }}" type="submit" class="btn btn-sm btn-primary">Simpan</button>

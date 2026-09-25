@@ -17,6 +17,15 @@
     .log-list { list-style: none; padding: 0; margin: 0; }
     .log-list li { padding: 8px 0 8px 16px; border-left: 2px solid #e2e8f0; position: relative; }
     .log-list li::before { content: ''; position: absolute; left: -6px; top: 14px; width: 10px; height: 10px; border-radius: 50%; background: #2A6CA2; }
+    /* HP: daftar kartu untuk item pesanan. Layar lebih lebar: tabel biasa. */
+    .item-cards { display: block; }
+    .item-table { display: none; }
+    @media (min-width: 576px) {
+        .item-cards { display: none; }
+        .item-table { display: block; }
+    }
+    .item-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; background: #fff; display: flex; gap: 12px; align-items: flex-start; }
+    .item-card + .item-card { margin-top: 10px; }
 </style>
 @endpush
 
@@ -69,7 +78,38 @@
         <div><a href="{{ route('customer.orders.create') }}" class="btn btn-brand">Tambah item</a></div>
     </div>
 @else
-    <div class="panel">
+    {{-- Tampilan HP: kartu --}}
+    <div class="item-cards">
+        @foreach($order->items as $item)
+            <div class="item-card">
+                <a href="{{ route('customer.orders.items.design', [$order, $item]) }}" target="_blank" rel="noopener" class="flex-shrink-0">
+                    <img src="{{ route('customer.orders.items.design', [$order, $item]) }}" class="thumb" alt="Desain item {{ $loop->iteration }}" loading="lazy">
+                </a>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold">{{ $item->size_name }}</div>
+                    @if($item->notes)<div class="small text-muted">{{ $item->notes }}</div>@endif
+                    <div class="small text-muted mt-1">{{ $item->quantity }} pcs &times; Rp {{ number_format($item->unit_price, 0, ',', '.') }}</div>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                        <span class="fw-semibold">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</span>
+                        @if($order->isEditable())
+                            <form action="{{ route('customer.orders.items.destroy', [$order, $item]) }}" method="POST" onsubmit="return confirm('Hapus item ini dari pesanan?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-sm btn-link text-danger text-decoration-none p-0">Hapus</button>
+                            </form>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endforeach
+        <div class="d-flex justify-content-between align-items-center mt-3 px-1">
+            <span class="fw-semibold">Total</span>
+            <span class="fs-5 fw-bold" style="color: #2A6CA2;">Rp {{ number_format($order->total, 0, ',', '.') }}</span>
+        </div>
+    </div>
+
+    {{-- Layar lebih lebar: tabel --}}
+    <div class="panel item-table">
         <div class="table-responsive">
             <table class="table align-middle mb-0">
                 <thead>

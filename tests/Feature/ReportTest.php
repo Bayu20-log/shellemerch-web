@@ -172,6 +172,6 @@ class ReportTest extends TestCase
     {
         $this->actingAs(User::factory()->create())->get(route('admin.reports.index'))->assertForbidden();
         auth()->logout();
-        $this->get(route('admin.reports.index'))->assertRedirect('/login');
+        $this->get(route('admin.reports.index'))->assertRedirect('/admin/login');
     }
 }

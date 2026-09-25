@@ -117,7 +117,7 @@ class AdminOrderListTest extends TestCase
 
         $this->actingAs($customer)->get(route('admin.orders.export'))->assertForbidden();
         auth()->logout();
-        $this->get(route('admin.orders.export'))->assertRedirect('/login');
+        $this->get(route('admin.orders.export'))->assertRedirect('/admin/login');
     }
 
     public function test_export_downloads_xlsx_respecting_filters_without_drafts(): void

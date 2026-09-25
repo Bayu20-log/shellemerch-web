@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PinSize;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class PinSizeController extends Controller
 {
@@ -42,8 +43,9 @@ class PinSizeController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'price' => ['required', 'integer', 'min:0', 'max:10000000'],
+            'availability' => ['required', Rule::in([PinSize::AVAILABLE, PinSize::SOLD_OUT, PinSize::COMING_SOON])],
         ]);
-        $data['is_active'] = $request->boolean('is_active');
+        $data['is_active'] = $data['availability'] === PinSize::AVAILABLE;
 
         return $data;
     }

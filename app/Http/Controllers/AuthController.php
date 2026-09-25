@@ -16,6 +16,7 @@ class AuthController extends Controller
             : route('customer.orders.index');
     }
 
+    // Login pelanggan (/login). Akun admin sengaja tidak bisa masuk lewat sini.
     public function showLoginForm()
     {
         if (Auth::check()) {
@@ -26,14 +27,35 @@ class AuthController extends Controller
 
     public function authenticate(Request $request)
     {
+        return $this->attempt($request, User::ROLE_CUSTOMER, route('customer.orders.index'));
+    }
+
+    // Login admin (/admin/login). Akun pelanggan tidak bisa masuk lewat sini.
+    public function showAdminLoginForm()
+    {
+        if (Auth::check()) {
+            return redirect($this->homeFor(Auth::user()));
+        }
+        return view('auth.admin-login');
+    }
+
+    public function authenticateAdmin(Request $request)
+    {
+        return $this->attempt($request, User::ROLE_ADMIN, route('admin.dashboard'));
+    }
+
+    // Peran ikut menjadi syarat pencarian akun, jadi akun dengan peran lain diperlakukan
+    // sama seperti akun yang tidak ada (pesan yang sama, tidak membocorkan keberadaan admin).
+    private function attempt(Request $request, string $role, string $default)
+    {
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
 
-        if (Auth::attempt($credentials)) {
+        if (Auth::attempt($credentials + ['role' => $role])) {
             $request->session()->regenerate();
-            return redirect()->intended($this->homeFor(Auth::user()));
+            return redirect()->intended($default);
         }
 
         return back()->withErrors([
@@ -77,10 +99,12 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        $wasAdmin = Auth::user()?->isAdmin() ?? false;
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return $wasAdmin ? redirect()->route('admin.login') : redirect('/');
     }
 }

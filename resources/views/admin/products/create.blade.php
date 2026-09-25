@@ -20,6 +20,14 @@
                             <input type="number" class="form-control" id="price" name="price" required>
                         </div>
                         <div class="mb-3">
+                            <label for="availability" class="form-label">Status stok</label>
+                            <select class="form-select" id="availability" name="availability">
+                                @foreach(\App\Models\Product::AVAILABILITY_LABELS as $val => $label)
+                                    <option value="{{ $val }}" @selected(old('availability', 'tersedia') === $val)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="mb-3">
                             <label for="image" class="form-label">Gambar Produk</label>
                             <input type="file" class="form-control" id="imageInput" name="image" accept="image/*" required>
                             

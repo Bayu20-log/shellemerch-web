@@ -26,11 +26,29 @@ class OrderController extends Controller
 
     public function create(Request $request)
     {
-        $sizes = PinSize::active()->orderBy('price')->orderBy('name')->get();
+        $sizes = PinSize::active()->orderBy('availability')->orderBy('price')->orderBy('name')->get();
         $reference = $request->filled('product') ? Product::find($request->integer('product')) : null;
         $waitingOrder = $request->user()->orders()->where('status', Order::STATUS_WAITING_PAYMENT)->first();
 
         return view('customer.orders.create', compact('sizes', 'reference', 'waitingOrder'));
+    }
+
+    // Daftar produk lain (bukan pin custom) yang bisa dipesan, untuk dipilih pelanggan.
+    public function products()
+    {
+        $products = Product::orderable()->latest()->get();
+
+        return view('customer.orders.products', compact('products'));
+    }
+
+    // Item lain (bukan pin custom) dari section Produk, dipesan lewat form yang sama dengan referensi produk terkunci.
+    public function createProduct(Request $request, Product $product)
+    {
+        abort_unless($product->isOrderable(), 404);
+        $sizes = PinSize::active()->orderBy('availability')->orderBy('price')->orderBy('name')->get();
+        $waitingOrder = $request->user()->orders()->where('status', Order::STATUS_WAITING_PAYMENT)->first();
+
+        return view('customer.orders.create', ['sizes' => $sizes, 'reference' => $product, 'waitingOrder' => $waitingOrder, 'lockedProduct' => true]);
     }
 
     // Menambah satu item. Jika pesanan sedang menunggu pembayaran, otomatis dikembalikan ke draft
@@ -38,7 +56,7 @@ class OrderController extends Controller
     public function storeItem(Request $request)
     {
         $data = $request->validate([
-            'pin_size_id' => ['required', Rule::exists('pin_sizes', 'id')->where('is_active', true)],
+            'pin_size_id' => ['required', Rule::exists('pin_sizes', 'id')->where('is_active', true)->where('availability', PinSize::AVAILABLE)],
             'quantity' => ['required', 'integer', 'min:1', 'max:1000'],
             'design' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
             'notes' => ['nullable', 'string', 'max:500'],
@@ -54,7 +72,7 @@ class OrderController extends Controller
             'design.max' => 'Ukuran foto maksimal 5 MB.',
         ]);
 
-        $size = PinSize::active()->findOrFail($data['pin_size_id']);
+        $size = PinSize::active()->orderable()->findOrFail($data['pin_size_id']);
         $path = $request->file('design')->store('designs', 'local'); // disk privat, tidak bisa dibuka lewat URL langsung
         $reopened = false;
 

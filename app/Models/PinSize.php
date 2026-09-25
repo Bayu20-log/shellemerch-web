@@ -2,19 +2,21 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
+use App\Support\HasAvailability;
 use Illuminate\Database\Eloquent\Model;
 
 class PinSize extends Model
 {
-    protected $fillable = ['name', 'price', 'is_active'];
+    use HasAvailability;
+
+    protected $fillable = ['name', 'price', 'is_active', 'availability'];
 
     protected function casts(): array
     {
         return ['is_active' => 'boolean'];
     }
 
-    public function scopeActive(Builder $query): Builder
+    public function scopeActive($query)
     {
         return $query->where('is_active', true);
     }

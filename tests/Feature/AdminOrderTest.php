@@ -165,8 +165,8 @@ class AdminOrderTest extends TestCase
         $this->assertSame('menunggu_verifikasi', $order->fresh()->status);
 
         auth()->logout();
-        $this->get(route('admin.orders.index'))->assertRedirect('/login');
-        $this->post(route('admin.orders.transition', $order), ['action' => 'confirm'])->assertRedirect('/login');
+        $this->get(route('admin.orders.index'))->assertRedirect('/admin/login');
+        $this->post(route('admin.orders.transition', $order), ['action' => 'confirm'])->assertRedirect('/admin/login');
     }
 
     public function test_admin_list_hides_drafts_and_filters_by_status(): void

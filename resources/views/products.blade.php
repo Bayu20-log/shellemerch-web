@@ -212,14 +212,21 @@
                 <div class="row">
                     @forelse($products as $product)
                     <div class="col-lg-4 col-sm-6 mb-4">
-                        <div class="product-grid-card p-3 h-100 d-flex flex-column">
+                        <div class="product-grid-card p-3 h-100 d-flex flex-column position-relative">
+                            @if($product->availability !== 'tersedia')
+                                <span class="badge rounded-pill {{ $product->availabilityBadgeClass() }} position-absolute" style="top: 12px; right: 12px;">{{ $product->availabilityLabel() }}</span>
+                            @endif
                             <img src="{{ asset('storage/' . $product->image) }}" class="product-grid-img mb-3 rounded" alt="{{ $product->name }}">
                             <div class="flex-grow-1">
                                 <h6 class="fw-bold text-dark mb-1">{{ $product->name }}</h6>
                                 <p class="text-secondary small mb-2" style="line-height: 1.4;">{{ Str::limit($product->description, 60) }}</p>
                             </div>
                             <span class="fw-bold d-block mt-2" style="color: #2A6CA2; font-size: 0.95rem;">Rp {{ number_format($product->price, 0, ',', '.') }}</span>
-                            <a href="{{ route('customer.orders.create', ['product' => $product->id]) }}" class="btn-cart shadow-sm">Pesan</a>
+                            @if($product->isOrderable())
+                                <a href="{{ route('customer.orders.create.product', $product) }}" class="btn-cart shadow-sm">Pesan</a>
+                            @else
+                                <span class="btn-cart shadow-sm disabled" style="opacity: .55; pointer-events: none;">{{ $product->availabilityLabel() }}</span>
+                            @endif
                         </div>
                     </div>
                     @empty
