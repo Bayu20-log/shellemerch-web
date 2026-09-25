@@ -25,9 +25,13 @@
                             @foreach($order->items as $item)
                                 <tr>
                                     <td class="ps-3">
-                                        <a href="{{ route('customer.orders.items.design', [$order, $item]) }}" target="_blank" rel="noopener" title="Buka ukuran penuh">
-                                            <img src="{{ route('customer.orders.items.design', [$order, $item]) }}" alt="Desain {{ $loop->iteration }}" style="width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid #dee2e6;" loading="lazy">
-                                        </a>
+                                        @if($item->isCustomPin())
+                                            <a href="{{ route('customer.orders.items.design', [$order, $item]) }}" target="_blank" rel="noopener" title="Buka ukuran penuh">
+                                                <img src="{{ route('customer.orders.items.design', [$order, $item]) }}" alt="Desain {{ $loop->iteration }}" style="width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid #dee2e6;" loading="lazy">
+                                            </a>
+                                        @elseif($item->product)
+                                            <img src="{{ asset('storage/' . $item->product->image) }}" alt="{{ $item->product->name }}" style="width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid #dee2e6;" loading="lazy">
+                                        @endif
                                     </td>
                                     <td>{{ $item->size_name }}@if($item->notes)<div class="small text-secondary">{{ $item->notes }}</div>@endif</td>
                                     <td class="text-center">{{ $item->quantity }}</td>

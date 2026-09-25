@@ -1,0 +1,963 @@
+diff --git a/app/Http/Controllers/Admin/OrderController.php b/app/Http/Controllers/Admin/OrderController.php
+index 413ace2..5221721 100644
+--- a/app/Http/Controllers/Admin/OrderController.php
++++ b/app/Http/Controllers/Admin/OrderController.php
+@@ -135,7 +135,7 @@ public function export(Request $request)
+     public function show(Order $order)
+     {
+         abort_if($order->status === Order::STATUS_DRAFT, 404);
+-        $order->load(['user', 'items', 'statusLogs.user']);
++        $order->load(['user', 'items.product', 'statusLogs.user']);
+ 
+         return view('admin.orders.show', compact('order'));
+     }
+diff --git a/app/Http/Controllers/Customer/OrderController.php b/app/Http/Controllers/Customer/OrderController.php
+index 2c8cef7..8ab57ac 100644
+--- a/app/Http/Controllers/Customer/OrderController.php
++++ b/app/Http/Controllers/Customer/OrderController.php
+@@ -24,16 +24,16 @@ public function index(Request $request)
+         return view('customer.orders.index', compact('orders'));
+     }
+ 
++    // Form pin custom: pilih ukuran, unggah desain.
+     public function create(Request $request)
+     {
+         $sizes = PinSize::active()->orderBy('availability')->orderBy('price')->orderBy('name')->get();
+-        $reference = $request->filled('product') ? Product::find($request->integer('product')) : null;
+         $waitingOrder = $request->user()->orders()->where('status', Order::STATUS_WAITING_PAYMENT)->first();
+ 
+-        return view('customer.orders.create', compact('sizes', 'reference', 'waitingOrder'));
++        return view('customer.orders.create', compact('sizes', 'waitingOrder'));
+     }
+ 
+-    // Daftar produk lain (bukan pin custom) yang bisa dipesan, untuk dipilih pelanggan.
++    // Daftar produk lain (bukan pin custom) yang bisa dipesan.
+     public function products()
+     {
+         $products = Product::orderable()->latest()->get();
+@@ -41,18 +41,17 @@ public function products()
+         return view('customer.orders.products', compact('products'));
+     }
+ 
+-    // Item lain (bukan pin custom) dari section Produk, dipesan lewat form yang sama dengan referensi produk terkunci.
++    // Form produk katalog: tanpa ukuran/desain, cukup jumlah. Foto dan harga mengikuti produknya.
+     public function createProduct(Request $request, Product $product)
+     {
+         abort_unless($product->isOrderable(), 404);
+-        $sizes = PinSize::active()->orderBy('availability')->orderBy('price')->orderBy('name')->get();
+         $waitingOrder = $request->user()->orders()->where('status', Order::STATUS_WAITING_PAYMENT)->first();
+ 
+-        return view('customer.orders.create', ['sizes' => $sizes, 'reference' => $product, 'waitingOrder' => $waitingOrder, 'lockedProduct' => true]);
++        return view('customer.orders.create-product', compact('product', 'waitingOrder'));
+     }
+ 
+-    // Menambah satu item. Jika pesanan sedang menunggu pembayaran, otomatis dikembalikan ke draft
+-    // (pelanggan boleh menambah item sebelum membayar, lalu lanjut ke pembayaran lagi).
++    // Menambah satu item pin custom. Jika pesanan sedang menunggu pembayaran, otomatis
++    // dikembalikan ke draft (pelanggan boleh menambah item sebelum lanjut bayar lagi).
+     public function storeItem(Request $request)
+     {
+         $data = $request->validate([
+@@ -74,34 +73,16 @@ public function storeItem(Request $request)
+ 
+         $size = PinSize::active()->orderable()->findOrFail($data['pin_size_id']);
+         $path = $request->file('design')->store('designs', 'local'); // disk privat, tidak bisa dibuka lewat URL langsung
+-        $reopened = false;
+ 
+         try {
+-            $order = DB::transaction(function () use ($request, $data, $size, $path, &$reopened) {
+-                $order = Order::where('user_id', $request->user()->id)
+-                    ->whereIn('status', [Order::STATUS_DRAFT, Order::STATUS_WAITING_PAYMENT])
+-                    ->lockForUpdate()
+-                    ->first();
+-
+-                if ($order && $order->status === Order::STATUS_WAITING_PAYMENT) {
+-                    $order->transitionTo(Order::STATUS_DRAFT, $request->user(), 'Item ditambahkan sebelum pembayaran');
+-                    $reopened = true;
+-                }
+-
+-                $order ??= Order::create(['user_id' => $request->user()->id, 'status' => Order::STATUS_DRAFT]);
+-
+-                $order->items()->create([
+-                    'pin_size_id' => $size->id,
+-                    'size_name' => $size->name,
+-                    'unit_price' => $size->price,
+-                    'quantity' => $data['quantity'],
+-                    'design_path' => $path,
+-                    'notes' => $data['notes'] ?? null,
+-                ]);
+-                $order->recalculateTotal();
+-
+-                return $order;
+-            });
++            [$order, $reopened] = $this->addItemToDraft($request, [
++                'pin_size_id' => $size->id,
++                'size_name' => $size->name,
++                'unit_price' => $size->price,
++                'quantity' => $data['quantity'],
++                'design_path' => $path,
++                'notes' => $data['notes'] ?? null,
++            ]);
+         } catch (\Throwable $e) {
+             Storage::disk('local')->delete($path);
+             throw $e;
+@@ -112,10 +93,71 @@ public function storeItem(Request $request)
+             : 'Item ditambahkan ke pesanan.');
+     }
+ 
++    // Menambah satu item produk katalog. Harga dan nama mengikuti produk saat ini; tidak ada desain/ukuran.
++    public function storeProductItem(Request $request, Product $product)
++    {
++        abort_unless($product->isOrderable(), 404);
++
++        $data = $request->validate([
++            'quantity' => ['required', 'integer', 'min:1', 'max:1000'],
++            'notes' => ['nullable', 'string', 'max:500'],
++        ], [
++            'quantity.required' => 'Isi jumlah pesanan.',
++            'quantity.min' => 'Jumlah minimal 1.',
++            'quantity.max' => 'Jumlah maksimal 1000 per item.',
++        ]);
++
++        [$order, $reopened] = $this->addItemToDraft($request, [
++            'product_id' => $product->id,
++            'size_name' => $product->name,
++            'unit_price' => $product->price,
++            'quantity' => $data['quantity'],
++            'design_path' => null,
++            'notes' => $data['notes'] ?? null,
++        ]);
++
++        return redirect()->route('customer.orders.show', $order)->with('success', $reopened
++            ? 'Item ditambahkan. Pesanan kembali ke draft, lanjutkan ke pembayaran setelah selesai menambah.'
++            : 'Item ditambahkan ke pesanan.');
++    }
++
++    /**
++     * Menambahkan satu item ke draft milik pelanggan (dibuat otomatis jika belum ada).
++     * Jika pesanan sedang menunggu pembayaran, dikembalikan ke draft dulu.
++     * Dipakai bersama oleh item pin custom maupun item produk katalog.
++     *
++     * @return array{0: Order, 1: bool} [$order, $reopened]
++     */
++    private function addItemToDraft(Request $request, array $itemAttributes): array
++    {
++        $reopened = false;
++
++        $order = DB::transaction(function () use ($request, $itemAttributes, &$reopened) {
++            $order = Order::where('user_id', $request->user()->id)
++                ->whereIn('status', [Order::STATUS_DRAFT, Order::STATUS_WAITING_PAYMENT])
++                ->lockForUpdate()
++                ->first();
++
++            if ($order && $order->status === Order::STATUS_WAITING_PAYMENT) {
++                $order->transitionTo(Order::STATUS_DRAFT, $request->user(), 'Item ditambahkan sebelum pembayaran');
++                $reopened = true;
++            }
++
++            $order ??= Order::create(['user_id' => $request->user()->id, 'status' => Order::STATUS_DRAFT]);
++
++            $order->items()->create($itemAttributes);
++            $order->recalculateTotal();
++
++            return $order;
++        });
++
++        return [$order, $reopened];
++    }
++
+     public function show(Request $request, Order $order)
+     {
+         $this->authorizeOwner($request, $order);
+-        $order->load(['items', 'statusLogs.user']);
++        $order->load(['items.product', 'statusLogs.user']);
+ 
+         $qris = [
+             'ready' => Setting::qrisConfigured(),
+@@ -135,7 +177,9 @@ public function destroyItem(Request $request, Order $order, OrderItem $item)
+             return back()->withErrors(['order' => 'Pesanan ini sudah tidak bisa diubah.']);
+         }
+ 
+-        Storage::disk('local')->delete($item->design_path);
++        if ($item->design_path) {
++            Storage::disk('local')->delete($item->design_path);
++        }
+         $item->delete();
+         $order->recalculateTotal();
+ 
+@@ -217,11 +261,12 @@ public function cancel(Request $request, Order $order)
+         return $this->move($order, Order::STATUS_WAITING_PAYMENT, Order::STATUS_CANCELLED, $request, 'Dibatalkan oleh pelanggan', [], 'Pesanan dibatalkan.');
+     }
+ 
+-    // Foto desain hanya bisa dibuka pemilik pesanan atau admin.
++    // Foto desain (khusus item pin custom) hanya bisa dibuka pemilik pesanan atau admin.
+     public function design(Request $request, Order $order, OrderItem $item)
+     {
+         abort_unless($request->user()->isAdmin() || $order->user_id === $request->user()->id, 404);
+         abort_unless($item->order_id === $order->id, 404);
++        abort_unless($item->design_path, 404);
+ 
+         return $this->privateImage($item->design_path);
+     }
+@@ -245,8 +290,6 @@ private function privateImage(string $path)
+         ]);
+     }
+ 
+-    // Setiap tombol pelanggan hanya berlaku dari satu status asal ($from). Aturan umum di Order::TRANSITIONS
+-    // juga mengizinkan tindakan admin, jadi pelanggan tidak boleh memakainya begitu saja.
+     private function move(Order $order, string $from, string $to, Request $request, ?string $note, array $attributes, string $success): RedirectResponse
+     {
+         if ($order->status !== $from) {
+diff --git a/app/Http/Controllers/LandingPageController.php b/app/Http/Controllers/LandingPageController.php
+index 52d9f91..3997f69 100644
+--- a/app/Http/Controllers/LandingPageController.php
++++ b/app/Http/Controllers/LandingPageController.php
+@@ -28,8 +28,17 @@ public function products(Request $request)
+ 
+         // 1. Fitur Pencarian (Berdasarkan nama produk)
+         if ($request->filled('search')) {
+-            $query->where('name', 'like', '%' . $request->search . '%')
+-                  ->orWhere('description', 'like', '%' . $request->search . '%');
++            $search = $request->search;
++            $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")
++                ->orWhere('description', 'like', "%{$search}%"));
++        }
++
++        // 1b. Filter status stok (Tersedia / Habis / Segera hadir)
++        $status = $request->query('status');
++        if (is_string($status) && isset(Product::AVAILABILITY_LABELS[$status])) {
++            $query->where('availability', $status);
++        } else {
++            $status = null;
+         }
+ 
+         // 2. Fitur Urutkan (Sort by)
+@@ -46,7 +55,7 @@ public function products(Request $request)
+         }
+ 
+         $products = $query->get();
+-        return view('products', compact('products'));
++        return view('products', compact('products', 'status'));
+     }
+ 
+     // Fungsi untuk Halaman About Us (Statis)
+diff --git a/app/Models/OrderItem.php b/app/Models/OrderItem.php
+index bd348ad..bbc9076 100644
+--- a/app/Models/OrderItem.php
++++ b/app/Models/OrderItem.php
+@@ -7,7 +7,7 @@
+ class OrderItem extends Model
+ {
+     protected $fillable = [
+-        'order_id', 'pin_size_id', 'size_name', 'unit_price',
++        'order_id', 'pin_size_id', 'product_id', 'size_name', 'unit_price',
+         'quantity', 'design_path', 'notes',
+     ];
+ 
+@@ -21,6 +21,17 @@ public function pinSize()
+         return $this->belongsTo(PinSize::class);
+     }
+ 
++    public function product()
++    {
++        return $this->belongsTo(Product::class);
++    }
++
++    // Item pin custom (desain + ukuran) vs item produk katalog (tanpa desain/ukuran).
++    public function isCustomPin(): bool
++    {
++        return $this->pin_size_id !== null || $this->design_path !== null;
++    }
++
+     public function getSubtotalAttribute(): int
+     {
+         return $this->unit_price * $this->quantity;
+diff --git a/database/migrations/2026_09_25_100000_allow_product_order_items.php b/database/migrations/2026_09_25_100000_allow_product_order_items.php
+new file mode 100644
+index 0000000..658146b
+--- /dev/null
++++ b/database/migrations/2026_09_25_100000_allow_product_order_items.php
+@@ -0,0 +1,26 @@
++<?php
++
++use Illuminate\Database\Migrations\Migration;
++use Illuminate\Database\Schema\Blueprint;
++use Illuminate\Support\Facades\Schema;
++
++return new class extends Migration
++{
++    // Item pesanan sekarang bisa berupa pin custom (design_path wajib, pin_size_id terisi)
++    // ATAU produk lain dari katalog (product_id terisi, tanpa desain/ukuran).
++    public function up(): void
++    {
++        Schema::table('order_items', function (Blueprint $table) {
++            $table->foreignId('product_id')->nullable()->after('order_id')->constrained()->nullOnDelete();
++            $table->string('design_path')->nullable()->change();
++        });
++    }
++
++    public function down(): void
++    {
++        Schema::table('order_items', function (Blueprint $table) {
++            $table->dropConstrainedForeignId('product_id');
++            $table->string('design_path')->nullable(false)->change();
++        });
++    }
++};
+diff --git a/resources/views/Layout/Partial/mobile-nav.blade.php b/resources/views/Layout/Partial/mobile-nav.blade.php
+new file mode 100644
+index 0000000..b615175
+--- /dev/null
++++ b/resources/views/Layout/Partial/mobile-nav.blade.php
+@@ -0,0 +1,60 @@
++{{-- Navbar HP: berubah jadi panel geser dari kiri (seperti RAKSAKTI), bukan dropdown penuh di tengah. --}}
++<style>
++    @media (max-width: 991.98px) {
++        .navbar-collapse {
++            display: block !important;
++            position: fixed;
++            top: 0;
++            left: 0;
++            width: 78vw;
++            max-width: 300px;
++            height: 100vh;
++            background-color: #1b2430;
++            padding: 90px 24px 24px;
++            overflow-y: auto;
++            transform: translateX(-100%);
++            transition: transform 0.3s ease;
++            visibility: hidden;
++            z-index: 1045;
++        }
++        .navbar-collapse.show { transform: translateX(0); visibility: visible; }
++        .navbar-collapse .navbar-nav { align-items: flex-start !important; width: 100%; }
++        .navbar-collapse .nav-item { width: 100%; }
++        .navbar-collapse .nav-link {
++            color: rgba(255,255,255,0.85) !important;
++            text-transform: none !important;
++            letter-spacing: normal !important;
++            font-size: 1rem !important;
++            padding: 12px 0 !important;
++            margin: 0 !important;
++            border-bottom: 1px solid rgba(255,255,255,0.08);
++        }
++        .navbar-collapse .nav-link:hover, .navbar-collapse .nav-link.active { color: #fff !important; }
++        .navbar-collapse .nav-link::after { display: none !important; }
++        .navbar-collapse form { margin-top: 12px; }
++        .nav-drawer-backdrop {
++            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55);
++            z-index: 1040; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
++        }
++        .nav-drawer-backdrop.show { opacity: 1; pointer-events: auto; }
++    }
++</style>
++<script>
++    document.addEventListener('DOMContentLoaded', function () {
++        var toggler = document.querySelector('.navbar-toggler');
++        var menu = document.querySelector('.navbar-collapse');
++        if (!toggler || !menu || typeof bootstrap === 'undefined') return;
++
++        var backdrop = document.createElement('div');
++        backdrop.className = 'nav-drawer-backdrop';
++        document.body.appendChild(backdrop);
++
++        var collapse = bootstrap.Collapse.getOrCreateInstance(menu, { toggle: false });
++        menu.addEventListener('shown.bs.collapse', function () { backdrop.classList.add('show'); });
++        menu.addEventListener('hidden.bs.collapse', function () { backdrop.classList.remove('show'); });
++        backdrop.addEventListener('click', function () { collapse.hide(); });
++        menu.querySelectorAll('.nav-link').forEach(function (link) {
++            link.addEventListener('click', function () { collapse.hide(); });
++        });
++    });
++</script>
+diff --git a/resources/views/Layout/Partial/sidenav_admin.blade.php b/resources/views/Layout/Partial/sidenav_admin.blade.php
+index 28e7caf..a5a0703 100644
+--- a/resources/views/Layout/Partial/sidenav_admin.blade.php
++++ b/resources/views/Layout/Partial/sidenav_admin.blade.php
+@@ -59,23 +59,23 @@
+                         Pembayaran QRIS
+                     </a>
+ 
+-                    <div class="sb-sidenav-menu-heading">Manajemen Konten</div>
+-                    
+-                    <a class="nav-link" href="{{ route('admin.heroes.index') }}">
+-                        <div class="sb-nav-link-icon"><i class="fas fa-images"></i></div>
+-                        Hero Slide
+-                    </a>
+-                    
+                     <a class="nav-link" href="{{ route('admin.products.index') }}">
+                         <div class="sb-nav-link-icon"><i class="fas fa-box"></i></div>
+                         Products
+                     </a>
+-                    
++
+                     <a class="nav-link" href="{{ route('admin.pin-sizes.index') }}">
+                         <div class="sb-nav-link-icon"><i class="fas fa-ruler"></i></div>
+                         Ukuran Pin
+                     </a>
+ 
++                    <div class="sb-sidenav-menu-heading">Manajemen Konten</div>
++                    
++                    <a class="nav-link" href="{{ route('admin.heroes.index') }}">
++                        <div class="sb-nav-link-icon"><i class="fas fa-images"></i></div>
++                        Hero Slide
++                    </a>
++                    
+                     <a class="nav-link" href="{{ route('admin.news.index') }}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-newspaper"></i></div>
+                         News
+diff --git a/resources/views/Layout/customer.blade.php b/resources/views/Layout/customer.blade.php
+index 845a798..197c787 100644
+--- a/resources/views/Layout/customer.blade.php
++++ b/resources/views/Layout/customer.blade.php
+@@ -30,6 +30,7 @@
+         @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+     </style>
+     @stack('styles')
++    @include('Layout.Partial.mobile-nav')
+ </head>
+ <body class="d-flex flex-column min-vh-100">
+     <nav class="navbar navbar-expand-lg sticky-top">
+diff --git a/resources/views/about.blade.php b/resources/views/about.blade.php
+index b659ccd..bab268b 100644
+--- a/resources/views/about.blade.php
++++ b/resources/views/about.blade.php
+@@ -188,6 +188,7 @@
+             }
+         }
+     </style>
++    @include('Layout.Partial.mobile-nav')
+ </head>
+ <body class="bg-pattern-light d-flex flex-column min-vh-100">
+ 
+diff --git a/resources/views/admin/orders/show.blade.php b/resources/views/admin/orders/show.blade.php
+index d3f5dfc..41d5d0c 100644
+--- a/resources/views/admin/orders/show.blade.php
++++ b/resources/views/admin/orders/show.blade.php
+@@ -25,9 +25,13 @@
+                             @foreach($order->items as $item)
+                                 <tr>
+                                     <td class="ps-3">
+-                                        <a href="{{ route('customer.orders.items.design', [$order, $item]) }}" target="_blank" rel="noopener" title="Buka ukuran penuh">
+-                                            <img src="{{ route('customer.orders.items.design', [$order, $item]) }}" alt="Desain {{ $loop->iteration }}" style="width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid #dee2e6;" loading="lazy">
+-                                        </a>
++                                        @if($item->isCustomPin())
++                                            <a href="{{ route('customer.orders.items.design', [$order, $item]) }}" target="_blank" rel="noopener" title="Buka ukuran penuh">
++                                                <img src="{{ route('customer.orders.items.design', [$order, $item]) }}" alt="Desain {{ $loop->iteration }}" style="width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid #dee2e6;" loading="lazy">
++                                            </a>
++                                        @elseif($item->product)
++                                            <img src="{{ asset('storage/' . $item->product->image) }}" alt="{{ $item->product->name }}" style="width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid #dee2e6;" loading="lazy">
++                                        @endif
+                                     </td>
+                                     <td>{{ $item->size_name }}@if($item->notes)<div class="small text-secondary">{{ $item->notes }}</div>@endif</td>
+                                     <td class="text-center">{{ $item->quantity }}</td>
+diff --git a/resources/views/customer/orders/create-product.blade.php b/resources/views/customer/orders/create-product.blade.php
+new file mode 100644
+index 0000000..8e21d87
+--- /dev/null
++++ b/resources/views/customer/orders/create-product.blade.php
+@@ -0,0 +1,39 @@
++@extends('Layout.customer')
++@section('title', 'Pesan ' . $product->name)
++@section('content')
++<a href="{{ route('customer.orders.products') }}" class="text-decoration-none small" style="color: #2A6CA2;">&larr; Produk lainnya</a>
++<h1 class="h3 page-title mt-2 mb-4">Pesan {{ $product->name }}</h1>
++
++@if($waitingOrder)
++    <div class="alert alert-info">
++        Pesanan <strong>{{ $waitingOrder->order_code }}</strong> sedang menunggu pembayaran. Jika Anda menambah item, pesanan itu kembali ke draft dan Anda perlu melanjutkan ke pembayaran lagi.
++    </div>
++@endif
++
++<div class="panel p-4 p-md-5">
++    <div class="d-flex align-items-center gap-3 mb-4">
++        <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}" class="rounded" style="width: 84px; height: 84px; object-fit: cover;">
++        <div>
++            <div class="fw-semibold">{{ $product->name }}</div>
++            <div class="text-muted">Rp {{ number_format($product->price, 0, ',', '.') }} / pcs</div>
++        </div>
++    </div>
++
++    <form action="{{ route('customer.orders.products.store', $product) }}" method="POST" novalidate>
++        @csrf
++        <div class="mb-4" style="max-width: 200px;">
++            <label for="quantity" class="form-label fw-semibold">Jumlah (pcs)</label>
++            <input type="number" id="quantity" name="quantity" class="form-control @error('quantity') is-invalid @enderror" value="{{ old('quantity', 1) }}" min="1" max="1000" required>
++            @error('quantity')<div class="invalid-feedback">{{ $message }}</div>@enderror
++        </div>
++
++        <div class="mb-4">
++            <label for="notes" class="form-label fw-semibold">Catatan untuk kami <span class="text-muted fw-normal">(opsional)</span></label>
++            <textarea id="notes" name="notes" rows="3" maxlength="500" class="form-control @error('notes') is-invalid @enderror">{{ old('notes') }}</textarea>
++            @error('notes')<div class="invalid-feedback">{{ $message }}</div>@enderror
++        </div>
++
++        <button type="submit" class="btn btn-brand">Tambahkan ke pesanan</button>
++    </form>
++</div>
++@endsection
+diff --git a/resources/views/customer/orders/create.blade.php b/resources/views/customer/orders/create.blade.php
+index 6af5435..c5d68d0 100644
+--- a/resources/views/customer/orders/create.blade.php
++++ b/resources/views/customer/orders/create.blade.php
+@@ -1,18 +1,8 @@
+ @extends('Layout.customer')
+-@section('title', isset($lockedProduct) ? 'Pesan ' . $reference->name : 'Tambah item pesanan')
++@section('title', 'Tambah item pesanan')
+ @section('content')
+ <a href="{{ route('customer.orders.index') }}" class="text-decoration-none small" style="color: #2A6CA2;">&larr; Pesanan saya</a>
+-<h1 class="h3 page-title mt-2 mb-4">{{ isset($lockedProduct) ? 'Pesan ' . $reference->name : 'Tambah item pin custom' }}</h1>
+-
+-@if(isset($lockedProduct))
+-    <div class="panel p-3 mb-4 d-flex align-items-center gap-3">
+-        <img src="{{ asset('storage/' . $reference->image) }}" alt="{{ $reference->name }}" class="rounded" style="width: 56px; height: 56px; object-fit: cover;">
+-        <div>
+-            <div class="fw-semibold">{{ $reference->name }}</div>
+-            <div class="small text-muted">Rp {{ number_format($reference->price, 0, ',', '.') }} &middot; pilih ukuran di bawah untuk pesan produk ini</div>
+-        </div>
+-    </div>
+-@endif
++<h1 class="h3 page-title mt-2 mb-4">Tambah item pin custom</h1>
+ 
+ @if($waitingOrder)
+     <div class="alert alert-info">
+@@ -67,7 +57,7 @@
+ 
+         <div class="mb-4">
+             <label for="notes" class="form-label fw-semibold">Catatan untuk kami <span class="text-muted fw-normal">(opsional)</span></label>
+-            <textarea id="notes" name="notes" rows="3" maxlength="500" class="form-control @error('notes') is-invalid @enderror">{{ old('notes', $reference ? 'Referensi produk: ' . $reference->name : '') }}</textarea>
++            <textarea id="notes" name="notes" rows="3" maxlength="500" class="form-control @error('notes') is-invalid @enderror">{{ old('notes') }}</textarea>
+             @error('notes')<div class="invalid-feedback">{{ $message }}</div>@enderror
+         </div>
+ 
+diff --git a/resources/views/customer/orders/show.blade.php b/resources/views/customer/orders/show.blade.php
+index 1fa1bd2..b9ebfed 100644
+--- a/resources/views/customer/orders/show.blade.php
++++ b/resources/views/customer/orders/show.blade.php
+@@ -82,9 +82,15 @@
+     <div class="item-cards">
+         @foreach($order->items as $item)
+             <div class="item-card">
+-                <a href="{{ route('customer.orders.items.design', [$order, $item]) }}" target="_blank" rel="noopener" class="flex-shrink-0">
+-                    <img src="{{ route('customer.orders.items.design', [$order, $item]) }}" class="thumb" alt="Desain item {{ $loop->iteration }}" loading="lazy">
+-                </a>
++                    @if($item->isCustomPin())
++                        <a href="{{ route('customer.orders.items.design', [$order, $item]) }}" target="_blank" rel="noopener" class="flex-shrink-0">
++                            <img src="{{ route('customer.orders.items.design', [$order, $item]) }}" class="thumb" alt="Desain item {{ $loop->iteration }}" loading="lazy">
++                        </a>
++                    @elseif($item->product)
++                        <img src="{{ asset('storage/' . $item->product->image) }}" class="thumb flex-shrink-0" alt="{{ $item->product->name }}" loading="lazy">
++                    @else
++                        <div class="thumb flex-shrink-0"></div>
++                    @endif
+                 <div class="flex-grow-1">
+                     <div class="fw-semibold">{{ $item->size_name }}</div>
+                     @if($item->notes)<div class="small text-muted">{{ $item->notes }}</div>@endif
+@@ -126,9 +132,15 @@
+                 @foreach($order->items as $item)
+                     <tr>
+                         <td class="ps-4">
+-                            <a href="{{ route('customer.orders.items.design', [$order, $item]) }}" target="_blank" rel="noopener">
+-                                <img src="{{ route('customer.orders.items.design', [$order, $item]) }}" class="thumb" alt="Desain item {{ $loop->iteration }}" loading="lazy">
+-                            </a>
++                            @if($item->isCustomPin())
++                                <a href="{{ route('customer.orders.items.design', [$order, $item]) }}" target="_blank" rel="noopener">
++                                    <img src="{{ route('customer.orders.items.design', [$order, $item]) }}" class="thumb" alt="Desain item {{ $loop->iteration }}" loading="lazy">
++                                </a>
++                            @elseif($item->product)
++                                <img src="{{ asset('storage/' . $item->product->image) }}" class="thumb" alt="{{ $item->product->name }}" loading="lazy">
++                            @else
++                                <div class="thumb"></div>
++                            @endif
+                         </td>
+                         <td>
+                             {{ $item->size_name }}
+diff --git a/resources/views/news-detail.blade.php b/resources/views/news-detail.blade.php
+index e44d4ab..a229b5f 100644
+--- a/resources/views/news-detail.blade.php
++++ b/resources/views/news-detail.blade.php
+@@ -108,6 +108,7 @@
+         }
+         
+     </style>
++    @include('Layout.Partial.mobile-nav')
+ </head>
+ <body class="bg-pattern-light d-flex flex-column min-vh-100">
+ 
+diff --git a/resources/views/news.blade.php b/resources/views/news.blade.php
+index abd294d..be61342 100644
+--- a/resources/views/news.blade.php
++++ b/resources/views/news.blade.php
+@@ -122,6 +122,7 @@
+             }
+         }
+     </style>
++    @include('Layout.Partial.mobile-nav')
+ </head>
+ <body class="bg-pattern-light d-flex flex-column min-vh-100">
+ 
+diff --git a/resources/views/products.blade.php b/resources/views/products.blade.php
+index f776c74..26fee06 100644
+--- a/resources/views/products.blade.php
++++ b/resources/views/products.blade.php
+@@ -133,6 +133,7 @@
+             }
+         }
+     </style>
++    @include('Layout.Partial.mobile-nav')
+ </head>
+ <body class="bg-pattern-light">
+ 
+@@ -173,19 +174,28 @@
+ 
+     <div class="container mb-5 pb-5">
+         <div class="row">
+-            <div class="col-lg-3 col-md-4 mb-4 animate-sidebar">
++            {{-- Di HP, produk tampil duluan; filter menyusul di bawah supaya tak perlu scroll dulu. --}}
++            <div class="col-lg-3 col-md-4 mb-4 order-2 order-md-1 animate-sidebar">
+                 <h4 class="sidebar-title">Browse by</h4>
+                 <hr style="border-color: #cbd5e1; opacity: 1;">
+                 <ul class="sidebar-list">
+-                    <li><a href="{{ url('/products') }}" class="active">All products</a></li>
+-                    <li><a href="#">EcoCanvas</a></li>
+-                    <li><a href="#">Coming soon</a></li>
++                    <li><a href="{{ url('/products') }}" class="{{ ! $status && ! request('search') ? 'active' : '' }}">All Products</a></li>
++                </ul>
++
++                <h4 class="sidebar-title mt-4">Status</h4>
++                <hr style="border-color: #cbd5e1; opacity: 1;">
++                <ul class="sidebar-list">
++                    <li><a href="{{ url('/products') }}" class="{{ ! $status ? 'active' : '' }}">Semua status</a></li>
++                    @foreach(\App\Models\Product::AVAILABILITY_LABELS as $val => $label)
++                        <li><a href="{{ route('products', array_filter(['status' => $val, 'search' => request('search'), 'sort' => request('sort')])) }}" class="{{ $status === $val ? 'active' : '' }}">{{ $label }}</a></li>
++                    @endforeach
+                 </ul>
+             </div>
+-            
+-            <div class="col-lg-9 col-md-8 animate-grid">
++
++            <div class="col-lg-9 col-md-8 order-1 order-md-2 animate-grid">
+                 
+                 <form action="{{ url('/products') }}" method="GET" id="filterForm">
++                    @if($status)<input type="hidden" name="status" value="{{ $status }}">@endif
+                     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                         <h3 class="fw-bold mb-2 mb-md-0" style="color: #2A6CA2;">All products</h3>
+                         
+diff --git a/resources/views/welcome.blade.php b/resources/views/welcome.blade.php
+index 9b0423e..6f4e987 100644
+--- a/resources/views/welcome.blade.php
++++ b/resources/views/welcome.blade.php
+@@ -84,7 +84,9 @@
+         .hover-lift { transition: transform 0.3s ease, box-shadow 0.3s ease; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; }
+         .hover-lift:hover { transform: translateY(-8px); box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1) !important; border-color: transparent; }
+ 
+-        .produk-img-container { width: 100%; height: 220px; background-color: #f8fafc; border-radius: 12px 12px 0 0; overflow: hidden; display: flex; justify-content: center; align-items: center; }
++        .produk-card { border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06); transition: transform 0.25s ease, box-shadow 0.25s ease; background: #fff; }
++        .produk-card:hover { transform: translateY(-6px); box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12); }
++        .produk-img-container { width: 100%; height: 180px; background-color: #f8fafc; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+         .produk-card-img { width: 100%; height: 100%; object-fit: cover; } 
+ 
+         .mitra-sponsor-card { overflow: hidden; border-radius: 16px; border: 1px solid #e2e8f0 !important; box-shadow: 0 4px 15px rgba(0,0,0,0.03) !important; background-color: #ffffff; }
+@@ -159,6 +161,24 @@
+                 width: 100% !important;
+             }
+         }
++
++        /* Hero dan foto About Us disamakan tingginya di HP, supaya tidak terasa timpang. */
++        @media (max-width: 768px) {
++            #heroCarousel .hero-img {
++                height: 260px !important;
++                max-height: 260px !important;
++                object-fit: cover !important;
++            }
++            #about img {
++                width: 100% !important;
++                height: 260px !important;
++                max-height: 260px !important;
++                object-fit: cover !important;
++            }
++            #about { padding: 50px 0 !important; }
++            .about-title { font-size: 2.4rem !important; }
++            .about-subtitle { font-size: 1.15rem !important; }
++        }
+         
+         /* 1. Kunci layar agar tidak bisa digeser ke kanan (hilangkan ruang putih) */
+         html, body {
+@@ -208,6 +228,7 @@
+         }
+         
+     </style>
++    @include('Layout.Partial.mobile-nav')
+ </head>
+ 
+ <body class="bg-pattern-light">
+@@ -297,10 +318,8 @@
+                     
+                     <h4 class="fw-semibold mb-4 about-subtitle">Mengenal Lebih Dekat Shellemerch</h4>
+                     
+-                    <p class="text-muted mb-4" style="white-space: pre-line; line-height: 1.8; font-size: 16px;">
+-                        Shellemerch hadir sebagai platform terpercaya yang menyediakan berbagai macam produk berkualitas dengan harga yang kompetitif. Kami berkomitmen penuh untuk memberikan pengalaman dan pelayanan terbaik bagi seluruh pelanggan kami.
+-                        
+-                        Didukung oleh tim yang berdedikasi tinggi, kami terus berinovasi dan memastikan setiap produk yang Anda terima adalah yang terbaik di kelasnya.
++                    <p class="text-muted mb-4" style="line-height: 1.8; font-size: 16px;">
++                        Shellemerch hadir sebagai platform terpercaya yang menyediakan berbagai produk berkualitas dengan harga kompetitif, didukung tim yang berdedikasi untuk pelayanan terbaik.
+                     </p>
+                     
+                     <a href="{{ route('about') }}" class="btn btn-light px-4 py-2 rounded-pill shadow-sm fw-bold mt-4" style="color: #2A6CA2;">
+@@ -329,18 +348,22 @@
+                     @if(isset($products) && $products->count() > 0)
+                         @foreach($products as $product)
+                         <div class="swiper-slide h-auto">
+-                            <div class="card h-100 pb-3 hover-lift border-0 shadow-sm">
++                            <div class="card h-100 produk-card border-0">
+                                 <div class="produk-img-container position-relative">
+                                     @if($product->availability !== 'tersedia')
+                                         <span class="badge rounded-pill {{ $product->availabilityBadgeClass() }} position-absolute" style="top: 10px; right: 10px; z-index: 2;">{{ $product->availabilityLabel() }}</span>
+                                     @endif
+                                     <img src="{{ asset('storage/' . $product->image) }}" class="produk-card-img" alt="{{ $product->name }}">
+                                 </div>
+-                                <div class="card-body p-4 d-flex flex-column text-start">
+-                                    <div class="flex-grow-1">
+-                                        <h5 class="card-title fw-bold text-dark">{{ $product->name }}</h5>
+-                                        <h5 class="fw-bold mb-3" style="color: #2A6CA2;">Rp {{ number_format($product->price, 0, ',', '.') }}</h5>
+-                                        <p class="card-text text-secondary mb-0" style="line-height: 1.6;">{{ Str::limit($product->description, 120) }}</p>
++                                <div class="card-body p-3 d-flex flex-column text-start">
++                                    <h6 class="card-title fw-bold text-dark mb-1" style="min-height: 2.6em;">{{ Str::limit($product->name, 45) }}</h6>
++                                    <span class="fw-bold mb-3" style="color: #2A6CA2; font-size: 1.05rem;">Rp {{ number_format($product->price, 0, ',', '.') }}</span>
++                                    <div class="mt-auto">
++                                        @if($product->isOrderable())
++                                            <a href="{{ route('customer.orders.create.product', $product) }}" class="btn btn-sm w-100 fw-semibold" style="background-color: #2A6CA2; color: #fff; border-radius: 8px;">Pesan</a>
++                                        @else
++                                            <span class="btn btn-sm w-100 fw-semibold disabled" style="background-color: #e2e8f0; color: #64748b; border-radius: 8px;">{{ $product->availabilityLabel() }}</span>
++                                        @endif
+                                     </div>
+                                 </div>
+                             </div>
+@@ -351,6 +374,14 @@
+                     @endif
+                 </div>
+             </div>
++
++            @if(isset($products) && $products->count() > 0)
++            <div class="text-center mt-4">
++                <a href="{{ route('products') }}" class="fw-bold text-decoration-none" style="color: #2A6CA2;">
++                    Lihat semua produk <i class="bi bi-arrow-right ms-1"></i>
++                </a>
++            </div>
++            @endif
+         </div>
+     </section>
+ 
+diff --git a/routes/web.php b/routes/web.php
+index 08be92f..a795237 100644
+--- a/routes/web.php
++++ b/routes/web.php
+@@ -53,6 +53,7 @@
+     Route::get('/baru', [OrderController::class, 'create'])->name('create');
+     Route::get('/produk', [OrderController::class, 'products'])->name('products');
+     Route::get('/produk/{product}', [OrderController::class, 'createProduct'])->whereNumber('product')->name('create.product');
++    Route::post('/produk/{product}', [OrderController::class, 'storeProductItem'])->whereNumber('product')->name('products.store');
+     Route::post('/item', [OrderController::class, 'storeItem'])->name('items.store');
+     Route::get('/{order}', [OrderController::class, 'show'])->whereNumber('order')->name('show');
+     Route::delete('/{order}/item/{item}', [OrderController::class, 'destroyItem'])->whereNumber(['order', 'item'])->name('items.destroy');
+diff --git a/tests/Feature/ProductFilterTest.php b/tests/Feature/ProductFilterTest.php
+new file mode 100644
+index 0000000..7432ecf
+--- /dev/null
++++ b/tests/Feature/ProductFilterTest.php
+@@ -0,0 +1,48 @@
++<?php
++
++namespace Tests\Feature;
++
++use App\Models\Product;
++use Illuminate\Foundation\Testing\RefreshDatabase;
++use Tests\TestCase;
++
++class ProductFilterTest extends TestCase
++{
++    use RefreshDatabase;
++
++    public function test_status_filter_shows_only_matching_products(): void
++    {
++        $ok = Product::create(['image' => 'x.jpg', 'name' => 'Produk Alpha', 'price' => 1000, 'availability' => 'tersedia']);
++        $out = Product::create(['image' => 'x.jpg', 'name' => 'Produk Beta', 'price' => 1000, 'availability' => 'habis']);
++        $soon = Product::create(['image' => 'x.jpg', 'name' => 'Produk Gamma', 'price' => 1000, 'availability' => 'segera']);
++
++        $this->get('/products')->assertSee('Produk Alpha')->assertSee('Produk Beta')->assertSee('Produk Gamma');
++        $this->get('/products?status=tersedia')->assertSee('Produk Alpha')->assertDontSee('Produk Beta')->assertDontSee('Produk Gamma');
++        $this->get('/products?status=habis')->assertDontSee('Produk Alpha')->assertSee('Produk Beta')->assertDontSee('Produk Gamma');
++        $this->get('/products?status=segera')->assertDontSee('Produk Alpha')->assertDontSee('Produk Beta')->assertSee('Produk Gamma');
++    }
++
++    public function test_invalid_status_is_ignored(): void
++    {
++        Product::create(['image' => 'x.jpg', 'name' => 'A', 'price' => 1000, 'availability' => 'tersedia']);
++
++        $this->get('/products?status=ngawur-banget')->assertOk()->assertSee('A');
++    }
++
++    public function test_search_and_status_combine_with_and_not_or(): void
++    {
++        Product::create(['image' => 'x.jpg', 'name' => 'Gantungan Laut', 'price' => 1000, 'availability' => 'tersedia']);
++        Product::create(['image' => 'x.jpg', 'name' => 'Gantungan Kunci', 'price' => 1000, 'availability' => 'habis']);
++
++        // pencarian "Gantungan" cocok keduanya, tapi status membatasi ke satu
++        $r = $this->get('/products?search=Gantungan&status=tersedia')->assertOk();
++        $r->assertSee('Gantungan Laut')->assertDontSee('Gantungan Kunci');
++    }
++
++    public function test_status_filter_persists_through_search_form(): void
++    {
++        Product::create(['image' => 'x.jpg', 'name' => 'A', 'price' => 1000, 'availability' => 'habis']);
++
++        $this->get('/products?status=habis')->assertSee('name="status" value="habis"', false);
++    }
++}
+diff --git a/tests/Feature/ProductOrderTest.php b/tests/Feature/ProductOrderTest.php
+new file mode 100644
+index 0000000..26fa888
+--- /dev/null
++++ b/tests/Feature/ProductOrderTest.php
+@@ -0,0 +1,141 @@
++<?php
++
++namespace Tests\Feature;
++
++use App\Models\Order;
++use App\Models\OrderItem;
++use App\Models\Product;
++use App\Models\User;
++use Illuminate\Foundation\Testing\RefreshDatabase;
++use Illuminate\Support\Facades\Storage;
++use Tests\TestCase;
++
++class ProductOrderTest extends TestCase
++{
++    use RefreshDatabase;
++
++    protected function setUp(): void
++    {
++        parent::setUp();
++        Storage::fake('local');
++        Storage::fake('public');
++        Storage::disk('public')->put('products/kk.jpg', 'x');
++    }
++
++    private function product(string $availability = 'tersedia'): Product
++    {
++        return Product::create(['image' => 'products/kk.jpg', 'name' => 'Gantungan Kunci', 'price' => 15000, 'availability' => $availability]);
++    }
++
++    public function test_order_form_has_no_size_or_design_fields(): void
++    {
++        $user = User::factory()->create();
++        $product = $this->product();
++
++        $this->actingAs($user)->get(route('customer.orders.create.product', $product))
++            ->assertOk()
++            ->assertDontSee('pin_size_id', false)
++            ->assertDontSee('name="design"', false)
++            ->assertSee('quantity', false);
++    }
++
++    public function test_ordering_a_product_creates_an_item_without_design_or_pin_size(): void
++    {
++        $user = User::factory()->create();
++        $product = $this->product();
++
++        $this->actingAs($user)->post(route('customer.orders.products.store', $product), [
++            'quantity' => 3, 'notes' => 'bungkus rapi',
++        ])->assertRedirect();
++
++        $order = Order::where('user_id', $user->id)->firstOrFail();
++        $item = $order->items()->firstOrFail();
++
++        $this->assertSame('draft', $order->status);
++        $this->assertSame(45000, $order->total);
++        $this->assertSame($product->id, $item->product_id);
++        $this->assertNull($item->pin_size_id);
++        $this->assertNull($item->design_path);
++        $this->assertSame('Gantungan Kunci', $item->size_name);
++        $this->assertSame(15000, $item->unit_price);
++        $this->assertSame('bungkus rapi', $item->notes);
++        $this->assertFalse($item->isCustomPin());
++    }
++
++    public function test_cannot_order_unavailable_product(): void
++    {
++        $user = User::factory()->create();
++        $soldOut = $this->product('habis');
++        $comingSoon = $this->product('segera');
++
++        $this->actingAs($user)->get(route('customer.orders.create.product', $soldOut))->assertNotFound();
++        $this->actingAs($user)->get(route('customer.orders.create.product', $comingSoon))->assertNotFound();
++        $this->actingAs($user)->post(route('customer.orders.products.store', $soldOut), ['quantity' => 1])->assertNotFound();
++
++        $this->assertSame(0, OrderItem::count());
++    }
++
++    public function test_quantity_validation(): void
++    {
++        $user = User::factory()->create();
++        $product = $this->product();
++        $post = fn ($qty) => $this->actingAs($user)->post(route('customer.orders.products.store', $product), array_filter(['quantity' => $qty], fn ($v) => $v !== null));
++
++        $post(0)->assertSessionHasErrors('quantity');
++        $post(1001)->assertSessionHasErrors('quantity');
++        $post(null)->assertSessionHasErrors('quantity');
++        $this->assertSame(0, OrderItem::count());
++    }
++
++    public function test_pin_items_and_product_items_can_share_one_order(): void
++    {
++        $user = User::factory()->create();
++        $size = \App\Models\PinSize::create(['name' => 'Kecil', 'price' => 5000, 'is_active' => true, 'availability' => 'tersedia']);
++        $product = $this->product();
++
++        $this->actingAs($user)->post(route('customer.orders.items.store'), [
++            'pin_size_id' => $size->id, 'quantity' => 2, 'design' => \Illuminate\Http\UploadedFile::fake()->image('d.jpg'),
++        ]);
++        $this->actingAs($user)->post(route('customer.orders.products.store', $product), ['quantity' => 1]);
++
++        $this->assertSame(1, Order::count());
++        $order = Order::first();
++        $this->assertSame(2, $order->items()->count());
++        $this->assertSame(25000, $order->total); // 2*5000 + 15000
++        $this->assertTrue($order->items->firstWhere('pin_size_id', $size->id)->isCustomPin());
++        $this->assertFalse($order->items->firstWhere('product_id', $product->id)->isCustomPin());
++    }
++
++    public function test_order_detail_shows_product_photo_for_product_items(): void
++    {
++        $user = User::factory()->create();
++        $product = $this->product();
++        $this->actingAs($user)->post(route('customer.orders.products.store', $product), ['quantity' => 1]);
++        $order = Order::first();
++
++        $this->actingAs($user)->get(route('customer.orders.show', $order))
++            ->assertOk()
++            ->assertSee(asset('storage/products/kk.jpg'), false)
++            ->assertSee('Gantungan Kunci');
++    }
++
++    public function test_adding_a_product_item_while_waiting_payment_reopens_the_order(): void
++    {
++        Storage::disk('public')->put('qris/x.png', 'x');
++        \App\Models\Setting::put('qris_image', 'qris/x.png');
++        $user = User::factory()->create();
++        $product = $this->product();
++
++        $this->actingAs($user)->post(route('customer.orders.products.store', $product), ['quantity' => 1]);
++        $order = Order::first();
++        $this->actingAs($user)->post(route('customer.orders.checkout', $order));
++        $this->assertSame('menunggu_pembayaran', $order->fresh()->status);
++
++        $this->actingAs($user)->post(route('customer.orders.products.store', $product), ['quantity' => 2]);
++        $this->assertSame(1, Order::count());
++        $order->refresh();
++        $this->assertSame('draft', $order->status);
++        $this->assertSame(2, $order->items()->count());
++        $this->assertSame(45000, $order->total);
++    }
++}

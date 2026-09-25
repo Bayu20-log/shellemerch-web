@@ -135,7 +135,7 @@ class OrderController extends Controller
     public function show(Order $order)
     {
         abort_if($order->status === Order::STATUS_DRAFT, 404);
-        $order->load(['user', 'items', 'statusLogs.user']);
+        $order->load(['user', 'items.product', 'statusLogs.user']);
 
         return view('admin.orders.show', compact('order'));
     }

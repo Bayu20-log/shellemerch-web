@@ -28,8 +28,17 @@ class LandingPageController extends Controller
 
         // 1. Fitur Pencarian (Berdasarkan nama produk)
         if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('description', 'like', '%' . $request->search . '%');
+            $search = $request->search;
+            $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")
+                ->orWhere('description', 'like', "%{$search}%"));
+        }
+
+        // 1b. Filter status stok (Tersedia / Habis / Segera hadir)
+        $status = $request->query('status');
+        if (is_string($status) && isset(Product::AVAILABILITY_LABELS[$status])) {
+            $query->where('availability', $status);
+        } else {
+            $status = null;
         }
 
         // 2. Fitur Urutkan (Sort by)
@@ -46,7 +55,7 @@ class LandingPageController extends Controller
         }
 
         $products = $query->get();
-        return view('products', compact('products'));
+        return view('products', compact('products', 'status'));
     }
 
     // Fungsi untuk Halaman About Us (Statis)

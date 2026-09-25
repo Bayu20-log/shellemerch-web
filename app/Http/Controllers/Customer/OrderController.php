@@ -24,16 +24,16 @@ class OrderController extends Controller
         return view('customer.orders.index', compact('orders'));
     }
 
+    // Form pin custom: pilih ukuran, unggah desain.
     public function create(Request $request)
     {
         $sizes = PinSize::active()->orderBy('availability')->orderBy('price')->orderBy('name')->get();
-        $reference = $request->filled('product') ? Product::find($request->integer('product')) : null;
         $waitingOrder = $request->user()->orders()->where('status', Order::STATUS_WAITING_PAYMENT)->first();
 
-        return view('customer.orders.create', compact('sizes', 'reference', 'waitingOrder'));
+        return view('customer.orders.create', compact('sizes', 'waitingOrder'));
     }
 
-    // Daftar produk lain (bukan pin custom) yang bisa dipesan, untuk dipilih pelanggan.
+    // Daftar produk lain (bukan pin custom) yang bisa dipesan.
     public function products()
     {
         $products = Product::orderable()->latest()->get();
@@ -41,18 +41,17 @@ class OrderController extends Controller
         return view('customer.orders.products', compact('products'));
     }
 
-    // Item lain (bukan pin custom) dari section Produk, dipesan lewat form yang sama dengan referensi produk terkunci.
+    // Form produk katalog: tanpa ukuran/desain, cukup jumlah. Foto dan harga mengikuti produknya.
     public function createProduct(Request $request, Product $product)
     {
         abort_unless($product->isOrderable(), 404);
-        $sizes = PinSize::active()->orderBy('availability')->orderBy('price')->orderBy('name')->get();
         $waitingOrder = $request->user()->orders()->where('status', Order::STATUS_WAITING_PAYMENT)->first();
 
-        return view('customer.orders.create', ['sizes' => $sizes, 'reference' => $product, 'waitingOrder' => $waitingOrder, 'lockedProduct' => true]);
+        return view('customer.orders.create-product', compact('product', 'waitingOrder'));
     }
 
-    // Menambah satu item. Jika pesanan sedang menunggu pembayaran, otomatis dikembalikan ke draft
-    // (pelanggan boleh menambah item sebelum membayar, lalu lanjut ke pembayaran lagi).
+    // Menambah satu item pin custom. Jika pesanan sedang menunggu pembayaran, otomatis
+    // dikembalikan ke draft (pelanggan boleh menambah item sebelum lanjut bayar lagi).
     public function storeItem(Request $request)
     {
         $data = $request->validate([
@@ -74,34 +73,16 @@ class OrderController extends Controller
 
         $size = PinSize::active()->orderable()->findOrFail($data['pin_size_id']);
         $path = $request->file('design')->store('designs', 'local'); // disk privat, tidak bisa dibuka lewat URL langsung
-        $reopened = false;
 
         try {
-            $order = DB::transaction(function () use ($request, $data, $size, $path, &$reopened) {
-                $order = Order::where('user_id', $request->user()->id)
-                    ->whereIn('status', [Order::STATUS_DRAFT, Order::STATUS_WAITING_PAYMENT])
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($order && $order->status === Order::STATUS_WAITING_PAYMENT) {
-                    $order->transitionTo(Order::STATUS_DRAFT, $request->user(), 'Item ditambahkan sebelum pembayaran');
-                    $reopened = true;
-                }
-
-                $order ??= Order::create(['user_id' => $request->user()->id, 'status' => Order::STATUS_DRAFT]);
-
-                $order->items()->create([
-                    'pin_size_id' => $size->id,
-                    'size_name' => $size->name,
-                    'unit_price' => $size->price,
-                    'quantity' => $data['quantity'],
-                    'design_path' => $path,
-                    'notes' => $data['notes'] ?? null,
-                ]);
-                $order->recalculateTotal();
-
-                return $order;
-            });
+            [$order, $reopened] = $this->addItemToDraft($request, [
+                'pin_size_id' => $size->id,
+                'size_name' => $size->name,
+                'unit_price' => $size->price,
+                'quantity' => $data['quantity'],
+                'design_path' => $path,
+                'notes' => $data['notes'] ?? null,
+            ]);
         } catch (\Throwable $e) {
             Storage::disk('local')->delete($path);
             throw $e;
@@ -112,10 +93,71 @@ class OrderController extends Controller
             : 'Item ditambahkan ke pesanan.');
     }
 
+    // Menambah satu item produk katalog. Harga dan nama mengikuti produk saat ini; tidak ada desain/ukuran.
+    public function storeProductItem(Request $request, Product $product)
+    {
+        abort_unless($product->isOrderable(), 404);
+
+        $data = $request->validate([
+            'quantity' => ['required', 'integer', 'min:1', 'max:1000'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ], [
+            'quantity.required' => 'Isi jumlah pesanan.',
+            'quantity.min' => 'Jumlah minimal 1.',
+            'quantity.max' => 'Jumlah maksimal 1000 per item.',
+        ]);
+
+        [$order, $reopened] = $this->addItemToDraft($request, [
+            'product_id' => $product->id,
+            'size_name' => $product->name,
+            'unit_price' => $product->price,
+            'quantity' => $data['quantity'],
+            'design_path' => null,
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        return redirect()->route('customer.orders.show', $order)->with('success', $reopened
+            ? 'Item ditambahkan. Pesanan kembali ke draft, lanjutkan ke pembayaran setelah selesai menambah.'
+            : 'Item ditambahkan ke pesanan.');
+    }
+
+    /**
+     * Menambahkan satu item ke draft milik pelanggan (dibuat otomatis jika belum ada).
+     * Jika pesanan sedang menunggu pembayaran, dikembalikan ke draft dulu.
+     * Dipakai bersama oleh item pin custom maupun item produk katalog.
+     *
+     * @return array{0: Order, 1: bool} [$order, $reopened]
+     */
+    private function addItemToDraft(Request $request, array $itemAttributes): array
+    {
+        $reopened = false;
+
+        $order = DB::transaction(function () use ($request, $itemAttributes, &$reopened) {
+            $order = Order::where('user_id', $request->user()->id)
+                ->whereIn('status', [Order::STATUS_DRAFT, Order::STATUS_WAITING_PAYMENT])
+                ->lockForUpdate()
+                ->first();
+
+            if ($order && $order->status === Order::STATUS_WAITING_PAYMENT) {
+                $order->transitionTo(Order::STATUS_DRAFT, $request->user(), 'Item ditambahkan sebelum pembayaran');
+                $reopened = true;
+            }
+
+            $order ??= Order::create(['user_id' => $request->user()->id, 'status' => Order::STATUS_DRAFT]);
+
+            $order->items()->create($itemAttributes);
+            $order->recalculateTotal();
+
+            return $order;
+        });
+
+        return [$order, $reopened];
+    }
+
     public function show(Request $request, Order $order)
     {
         $this->authorizeOwner($request, $order);
-        $order->load(['items', 'statusLogs.user']);
+        $order->load(['items.product', 'statusLogs.user']);
 
         $qris = [
             'ready' => Setting::qrisConfigured(),
@@ -135,7 +177,9 @@ class OrderController extends Controller
             return back()->withErrors(['order' => 'Pesanan ini sudah tidak bisa diubah.']);
         }
 
-        Storage::disk('local')->delete($item->design_path);
+        if ($item->design_path) {
+            Storage::disk('local')->delete($item->design_path);
+        }
         $item->delete();
         $order->recalculateTotal();
 
@@ -217,11 +261,12 @@ class OrderController extends Controller
         return $this->move($order, Order::STATUS_WAITING_PAYMENT, Order::STATUS_CANCELLED, $request, 'Dibatalkan oleh pelanggan', [], 'Pesanan dibatalkan.');
     }
 
-    // Foto desain hanya bisa dibuka pemilik pesanan atau admin.
+    // Foto desain (khusus item pin custom) hanya bisa dibuka pemilik pesanan atau admin.
     public function design(Request $request, Order $order, OrderItem $item)
     {
         abort_unless($request->user()->isAdmin() || $order->user_id === $request->user()->id, 404);
         abort_unless($item->order_id === $order->id, 404);
+        abort_unless($item->design_path, 404);
 
         return $this->privateImage($item->design_path);
     }
@@ -245,8 +290,6 @@ class OrderController extends Controller
         ]);
     }
 
-    // Setiap tombol pelanggan hanya berlaku dari satu status asal ($from). Aturan umum di Order::TRANSITIONS
-    // juga mengizinkan tindakan admin, jadi pelanggan tidak boleh memakainya begitu saja.
     private function move(Order $order, string $from, string $to, Request $request, ?string $note, array $attributes, string $success): RedirectResponse
     {
         if ($order->status !== $from) {

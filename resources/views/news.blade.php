@@ -122,6 +122,7 @@
             }
         }
     </style>
+    @include('Layout.Partial.mobile-nav')
 </head>
 <body class="bg-pattern-light d-flex flex-column min-vh-100">
 

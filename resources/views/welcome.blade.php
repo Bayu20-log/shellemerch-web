@@ -84,7 +84,9 @@
         .hover-lift { transition: transform 0.3s ease, box-shadow 0.3s ease; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; }
         .hover-lift:hover { transform: translateY(-8px); box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1) !important; border-color: transparent; }
 
-        .produk-img-container { width: 100%; height: 220px; background-color: #f8fafc; border-radius: 12px 12px 0 0; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        .produk-card { border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06); transition: transform 0.25s ease, box-shadow 0.25s ease; background: #fff; }
+        .produk-card:hover { transform: translateY(-6px); box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12); }
+        .produk-img-container { width: 100%; height: 180px; background-color: #f8fafc; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         .produk-card-img { width: 100%; height: 100%; object-fit: cover; } 
 
         .mitra-sponsor-card { overflow: hidden; border-radius: 16px; border: 1px solid #e2e8f0 !important; box-shadow: 0 4px 15px rgba(0,0,0,0.03) !important; background-color: #ffffff; }
@@ -159,6 +161,24 @@
                 width: 100% !important;
             }
         }
+
+        /* Hero dan foto About Us disamakan tingginya di HP, supaya tidak terasa timpang. */
+        @media (max-width: 768px) {
+            #heroCarousel .hero-img {
+                height: 260px !important;
+                max-height: 260px !important;
+                object-fit: cover !important;
+            }
+            #about img {
+                width: 100% !important;
+                height: 260px !important;
+                max-height: 260px !important;
+                object-fit: cover !important;
+            }
+            #about { padding: 50px 0 !important; }
+            .about-title { font-size: 2.4rem !important; }
+            .about-subtitle { font-size: 1.15rem !important; }
+        }
         
         /* 1. Kunci layar agar tidak bisa digeser ke kanan (hilangkan ruang putih) */
         html, body {
@@ -208,6 +228,7 @@
         }
         
     </style>
+    @include('Layout.Partial.mobile-nav')
 </head>
 
 <body class="bg-pattern-light">
@@ -297,10 +318,8 @@
                     
                     <h4 class="fw-semibold mb-4 about-subtitle">Mengenal Lebih Dekat Shellemerch</h4>
                     
-                    <p class="text-muted mb-4" style="white-space: pre-line; line-height: 1.8; font-size: 16px;">
-                        Shellemerch hadir sebagai platform terpercaya yang menyediakan berbagai macam produk berkualitas dengan harga yang kompetitif. Kami berkomitmen penuh untuk memberikan pengalaman dan pelayanan terbaik bagi seluruh pelanggan kami.
-                        
-                        Didukung oleh tim yang berdedikasi tinggi, kami terus berinovasi dan memastikan setiap produk yang Anda terima adalah yang terbaik di kelasnya.
+                    <p class="text-muted mb-4" style="line-height: 1.8; font-size: 16px;">
+                        Shellemerch hadir sebagai platform terpercaya yang menyediakan berbagai produk berkualitas dengan harga kompetitif, didukung tim yang berdedikasi untuk pelayanan terbaik.
                     </p>
                     
                     <a href="{{ route('about') }}" class="btn btn-light px-4 py-2 rounded-pill shadow-sm fw-bold mt-4" style="color: #2A6CA2;">
@@ -329,18 +348,22 @@
                     @if(isset($products) && $products->count() > 0)
                         @foreach($products as $product)
                         <div class="swiper-slide h-auto">
-                            <div class="card h-100 pb-3 hover-lift border-0 shadow-sm">
+                            <div class="card h-100 produk-card border-0">
                                 <div class="produk-img-container position-relative">
                                     @if($product->availability !== 'tersedia')
                                         <span class="badge rounded-pill {{ $product->availabilityBadgeClass() }} position-absolute" style="top: 10px; right: 10px; z-index: 2;">{{ $product->availabilityLabel() }}</span>
                                     @endif
                                     <img src="{{ asset('storage/' . $product->image) }}" class="produk-card-img" alt="{{ $product->name }}">
                                 </div>
-                                <div class="card-body p-4 d-flex flex-column text-start">
-                                    <div class="flex-grow-1">
-                                        <h5 class="card-title fw-bold text-dark">{{ $product->name }}</h5>
-                                        <h5 class="fw-bold mb-3" style="color: #2A6CA2;">Rp {{ number_format($product->price, 0, ',', '.') }}</h5>
-                                        <p class="card-text text-secondary mb-0" style="line-height: 1.6;">{{ Str::limit($product->description, 120) }}</p>
+                                <div class="card-body p-3 d-flex flex-column text-start">
+                                    <h6 class="card-title fw-bold text-dark mb-1" style="min-height: 2.6em;">{{ Str::limit($product->name, 45) }}</h6>
+                                    <span class="fw-bold mb-3" style="color: #2A6CA2; font-size: 1.05rem;">Rp {{ number_format($product->price, 0, ',', '.') }}</span>
+                                    <div class="mt-auto">
+                                        @if($product->isOrderable())
+                                            <a href="{{ route('customer.orders.create.product', $product) }}" class="btn btn-sm w-100 fw-semibold" style="background-color: #2A6CA2; color: #fff; border-radius: 8px;">Pesan</a>
+                                        @else
+                                            <span class="btn btn-sm w-100 fw-semibold disabled" style="background-color: #e2e8f0; color: #64748b; border-radius: 8px;">{{ $product->availabilityLabel() }}</span>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -351,6 +374,14 @@
                     @endif
                 </div>
             </div>
+
+            @if(isset($products) && $products->count() > 0)
+            <div class="text-center mt-4">
+                <a href="{{ route('products') }}" class="fw-bold text-decoration-none" style="color: #2A6CA2;">
+                    Lihat semua produk <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+            </div>
+            @endif
         </div>
     </section>
 

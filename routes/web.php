@@ -53,6 +53,7 @@ Route::middleware('auth')->prefix('pesanan')->name('customer.orders.')->group(fu
     Route::get('/baru', [OrderController::class, 'create'])->name('create');
     Route::get('/produk', [OrderController::class, 'products'])->name('products');
     Route::get('/produk/{product}', [OrderController::class, 'createProduct'])->whereNumber('product')->name('create.product');
+    Route::post('/produk/{product}', [OrderController::class, 'storeProductItem'])->whereNumber('product')->name('products.store');
     Route::post('/item', [OrderController::class, 'storeItem'])->name('items.store');
     Route::get('/{order}', [OrderController::class, 'show'])->whereNumber('order')->name('show');
     Route::delete('/{order}/item/{item}', [OrderController::class, 'destroyItem'])->whereNumber(['order', 'item'])->name('items.destroy');

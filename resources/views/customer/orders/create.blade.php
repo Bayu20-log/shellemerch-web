@@ -1,18 +1,8 @@
 @extends('Layout.customer')
-@section('title', isset($lockedProduct) ? 'Pesan ' . $reference->name : 'Tambah item pesanan')
+@section('title', 'Tambah item pesanan')
 @section('content')
 <a href="{{ route('customer.orders.index') }}" class="text-decoration-none small" style="color: #2A6CA2;">&larr; Pesanan saya</a>
-<h1 class="h3 page-title mt-2 mb-4">{{ isset($lockedProduct) ? 'Pesan ' . $reference->name : 'Tambah item pin custom' }}</h1>
-
-@if(isset($lockedProduct))
-    <div class="panel p-3 mb-4 d-flex align-items-center gap-3">
-        <img src="{{ asset('storage/' . $reference->image) }}" alt="{{ $reference->name }}" class="rounded" style="width: 56px; height: 56px; object-fit: cover;">
-        <div>
-            <div class="fw-semibold">{{ $reference->name }}</div>
-            <div class="small text-muted">Rp {{ number_format($reference->price, 0, ',', '.') }} &middot; pilih ukuran di bawah untuk pesan produk ini</div>
-        </div>
-    </div>
-@endif
+<h1 class="h3 page-title mt-2 mb-4">Tambah item pin custom</h1>
 
 @if($waitingOrder)
     <div class="alert alert-info">
@@ -67,7 +57,7 @@
 
         <div class="mb-4">
             <label for="notes" class="form-label fw-semibold">Catatan untuk kami <span class="text-muted fw-normal">(opsional)</span></label>
-            <textarea id="notes" name="notes" rows="3" maxlength="500" class="form-control @error('notes') is-invalid @enderror">{{ old('notes', $reference ? 'Referensi produk: ' . $reference->name : '') }}</textarea>
+            <textarea id="notes" name="notes" rows="3" maxlength="500" class="form-control @error('notes') is-invalid @enderror">{{ old('notes') }}</textarea>
             @error('notes')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
 

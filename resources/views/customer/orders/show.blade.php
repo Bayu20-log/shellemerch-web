@@ -82,9 +82,15 @@
     <div class="item-cards">
         @foreach($order->items as $item)
             <div class="item-card">
-                <a href="{{ route('customer.orders.items.design', [$order, $item]) }}" target="_blank" rel="noopener" class="flex-shrink-0">
-                    <img src="{{ route('customer.orders.items.design', [$order, $item]) }}" class="thumb" alt="Desain item {{ $loop->iteration }}" loading="lazy">
-                </a>
+                    @if($item->isCustomPin())
+                        <a href="{{ route('customer.orders.items.design', [$order, $item]) }}" target="_blank" rel="noopener" class="flex-shrink-0">
+                            <img src="{{ route('customer.orders.items.design', [$order, $item]) }}" class="thumb" alt="Desain item {{ $loop->iteration }}" loading="lazy">
+                        </a>
+                    @elseif($item->product)
+                        <img src="{{ asset('storage/' . $item->product->image) }}" class="thumb flex-shrink-0" alt="{{ $item->product->name }}" loading="lazy">
+                    @else
+                        <div class="thumb flex-shrink-0"></div>
+                    @endif
                 <div class="flex-grow-1">
                     <div class="fw-semibold">{{ $item->size_name }}</div>
                     @if($item->notes)<div class="small text-muted">{{ $item->notes }}</div>@endif
@@ -126,9 +132,15 @@
                 @foreach($order->items as $item)
                     <tr>
                         <td class="ps-4">
-                            <a href="{{ route('customer.orders.items.design', [$order, $item]) }}" target="_blank" rel="noopener">
-                                <img src="{{ route('customer.orders.items.design', [$order, $item]) }}" class="thumb" alt="Desain item {{ $loop->iteration }}" loading="lazy">
-                            </a>
+                            @if($item->isCustomPin())
+                                <a href="{{ route('customer.orders.items.design', [$order, $item]) }}" target="_blank" rel="noopener">
+                                    <img src="{{ route('customer.orders.items.design', [$order, $item]) }}" class="thumb" alt="Desain item {{ $loop->iteration }}" loading="lazy">
+                                </a>
+                            @elseif($item->product)
+                                <img src="{{ asset('storage/' . $item->product->image) }}" class="thumb" alt="{{ $item->product->name }}" loading="lazy">
+                            @else
+                                <div class="thumb"></div>
+                            @endif
                         </td>
                         <td>
                             {{ $item->size_name }}

@@ -133,6 +133,7 @@
             }
         }
     </style>
+    @include('Layout.Partial.mobile-nav')
 </head>
 <body class="bg-pattern-light">
 
@@ -173,19 +174,28 @@
 
     <div class="container mb-5 pb-5">
         <div class="row">
-            <div class="col-lg-3 col-md-4 mb-4 animate-sidebar">
+            {{-- Di HP, produk tampil duluan; filter menyusul di bawah supaya tak perlu scroll dulu. --}}
+            <div class="col-lg-3 col-md-4 mb-4 order-2 order-md-1 animate-sidebar">
                 <h4 class="sidebar-title">Browse by</h4>
                 <hr style="border-color: #cbd5e1; opacity: 1;">
                 <ul class="sidebar-list">
-                    <li><a href="{{ url('/products') }}" class="active">All products</a></li>
-                    <li><a href="#">EcoCanvas</a></li>
-                    <li><a href="#">Coming soon</a></li>
+                    <li><a href="{{ url('/products') }}" class="{{ ! $status && ! request('search') ? 'active' : '' }}">All Products</a></li>
+                </ul>
+
+                <h4 class="sidebar-title mt-4">Status</h4>
+                <hr style="border-color: #cbd5e1; opacity: 1;">
+                <ul class="sidebar-list">
+                    <li><a href="{{ url('/products') }}" class="{{ ! $status ? 'active' : '' }}">Semua status</a></li>
+                    @foreach(\App\Models\Product::AVAILABILITY_LABELS as $val => $label)
+                        <li><a href="{{ route('products', array_filter(['status' => $val, 'search' => request('search'), 'sort' => request('sort')])) }}" class="{{ $status === $val ? 'active' : '' }}">{{ $label }}</a></li>
+                    @endforeach
                 </ul>
             </div>
-            
-            <div class="col-lg-9 col-md-8 animate-grid">
+
+            <div class="col-lg-9 col-md-8 order-1 order-md-2 animate-grid">
                 
                 <form action="{{ url('/products') }}" method="GET" id="filterForm">
+                    @if($status)<input type="hidden" name="status" value="{{ $status }}">@endif
                     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
                         <h3 class="fw-bold mb-2 mb-md-0" style="color: #2A6CA2;">All products</h3>
                         

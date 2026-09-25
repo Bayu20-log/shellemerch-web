@@ -30,6 +30,7 @@
         @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
     </style>
     @stack('styles')
+    @include('Layout.Partial.mobile-nav')
 </head>
 <body class="d-flex flex-column min-vh-100">
     <nav class="navbar navbar-expand-lg sticky-top">
