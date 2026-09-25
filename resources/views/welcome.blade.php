@@ -78,8 +78,12 @@
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
         .section-title { font-weight: 700; color: #2d3748; text-transform: uppercase; margin-bottom: 5px; font-size: 2.2rem; }
         .section-title-underline { width: 80px; height: 4px; background-color: #2A6CA2; border-radius: 2px; }
-        .slider-nav button { background: none; border: 2px solid #2A6CA2; color: #2A6CA2; border-radius: 50%; width: 45px; height: 45px; display: inline-flex; align-items: center; justify-content: center; transition: 0.3s; margin-left: 10px; cursor: pointer; }
+        .slider-nav { display: flex; flex-direction: row; align-items: center; gap: 10px; flex-shrink: 0; }
+        .slider-nav button { background: none; border: 2px solid #2A6CA2; color: #2A6CA2; border-radius: 50%; width: 45px; height: 45px; display: inline-flex; align-items: center; justify-content: center; transition: 0.3s; cursor: pointer; flex-shrink: 0; }
         .slider-nav button:hover { background: #2A6CA2; color: #fff; }
+        @media (max-width: 576px) {
+            .slider-nav button { width: 38px; height: 38px; }
+        }
 
         .hover-lift { transition: transform 0.3s ease, box-shadow 0.3s ease; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; }
         .hover-lift:hover { transform: translateY(-8px); box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1) !important; border-color: transparent; }
@@ -162,12 +166,13 @@
             }
         }
 
-        /* Hero dan foto About Us disamakan tingginya di HP, supaya tidak terasa timpang. */
+        /* Hero (gambar yang diunggah admin) harus tampil UTUH di HP, tidak terpotong. */
+        #heroCarousel .carousel-inner { background-color: #eaf1f8; border-radius: 20px; }
         @media (max-width: 768px) {
             #heroCarousel .hero-img {
-                height: 260px !important;
-                max-height: 260px !important;
-                object-fit: cover !important;
+                height: 300px !important;
+                max-height: 300px !important;
+                object-fit: contain !important;
             }
             #about img {
                 width: 100% !important;
@@ -175,9 +180,15 @@
                 max-height: 260px !important;
                 object-fit: cover !important;
             }
-            #about { padding: 50px 0 !important; }
+            #about { padding: 40px 0 !important; }
             .about-title { font-size: 2.4rem !important; }
             .about-subtitle { font-size: 1.15rem !important; }
+
+            /* Jarak antar section dirapatkan supaya pelanggan tak perlu scroll jauh */
+            #hero { padding: 16px 0 30px 0 !important; }
+            #products, #news { padding: 36px 0 !important; }
+            .section-header { margin-bottom: 20px !important; }
+            .swiper { padding-bottom: 30px !important; padding-top: 6px !important; }
         }
         
         /* 1. Kunci layar agar tidak bisa digeser ke kanan (hilangkan ruang putih) */
@@ -387,36 +398,45 @@
 
     <section id="news" class="bg-pattern-dark">
         <div class="container">
-            <div class="section-header mb-5">
+            <div class="section-header">
                 <div>
                     <h2 class="section-title text-white">News</h2>
                     <div class="section-title-underline" style="background-color: #ffffff;"></div>
                 </div>
-            </div>
-            <div class="row">
-                @if(isset($news) && $news->count() > 0)
-                    @foreach($news as $item)
-                    <div class="col-lg-4 col-md-6 mb-4">
-                        <a href="{{ route('news.detail', $item->id) }}" class="text-decoration-none">
-                            <div class="card h-100 border-0 shadow-sm hover-lift">
-                                <img src="{{ asset('storage/' . $item->image) }}" class="card-img-top news-img" alt="{{ $item->title }}">
-                                <div class="card-body p-4 d-flex flex-column text-start">
-                                    <span class="text-primary fw-bold mb-2" style="font-size: 0.85rem;"><i class="bi bi-calendar3 me-2"></i>{{ \Carbon\Carbon::parse($item->published_date ?? $item->created_at)->translatedFormat('d M Y') }}</span>
-                                    <h5 class="fw-bold text-dark mb-3" style="font-size: 1.2rem;">{{ Str::limit($item->title, 50) }}</h5>
-                                    <p class="text-muted flex-grow-1" style="font-size: 0.95rem;">{!! Str::limit(strip_tags($item->content), 90) !!}</p>
-                                    <span class="mt-auto text-primary fw-bold" style="font-size: 0.95rem;">Baca Selengkapnya <i class="bi bi-arrow-right"></i></span>
-                                </div>
-                            </div>
-                        </a>
-                    </div>
-                    @endforeach
-                @else
-                    <div class="col-12"><p class="text-white text-center">Belum ada berita.</p></div>
+                @if(isset($news) && $news->count() > 1)
+                <div class="slider-nav">
+                    <button class="news-prev"><i class="bi bi-arrow-left"></i></button>
+                    <button class="news-next"><i class="bi bi-arrow-right"></i></button>
+                </div>
                 @endif
             </div>
 
+            <div class="swiper news-slider">
+                <div class="swiper-wrapper">
+                    @if(isset($news) && $news->count() > 0)
+                        @foreach($news as $item)
+                        <div class="swiper-slide h-auto">
+                            <a href="{{ route('news.detail', $item->id) }}" class="text-decoration-none">
+                                <div class="card h-100 border-0 shadow-sm hover-lift">
+                                    <img src="{{ asset('storage/' . $item->image) }}" class="card-img-top news-img" alt="{{ $item->title }}">
+                                    <div class="card-body p-4 d-flex flex-column text-start">
+                                        <span class="text-primary fw-bold mb-2" style="font-size: 0.85rem;"><i class="bi bi-calendar3 me-2"></i>{{ \Carbon\Carbon::parse($item->published_date ?? $item->created_at)->translatedFormat('d M Y') }}</span>
+                                        <h5 class="fw-bold text-dark mb-3" style="font-size: 1.2rem;">{{ Str::limit($item->title, 50) }}</h5>
+                                        <p class="text-muted flex-grow-1" style="font-size: 0.95rem;">{!! Str::limit(strip_tags($item->content), 90) !!}</p>
+                                        <span class="mt-auto text-primary fw-bold" style="font-size: 0.95rem;">Baca Selengkapnya <i class="bi bi-arrow-right"></i></span>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        @endforeach
+                    @else
+                        <div class="swiper-slide"><p class="text-white text-center">Belum ada berita.</p></div>
+                    @endif
+                </div>
+            </div>
+
             @if(isset($news) && $news->count() > 0)
-            <div class="text-center mt-5">
+            <div class="text-center mt-4">
                 <a href="{{ route('news.index') }}" class="btn btn-outline-light px-5 py-2 rounded-pill fw-bold" style="border-width: 2px;">
                     Berita Lainnya <i class="bi bi-arrow-right ms-2"></i>
                 </a>
@@ -545,6 +565,13 @@
                 autoplay: { delay: 3500, disableOnInteraction: false },
                 navigation: { nextEl: '.sponsor-next', prevEl: '.sponsor-prev' },
                 breakpoints: { 576: { slidesPerView: 1 }, 768: { slidesPerView: 2 }, 992: { slidesPerView: 3 }, 1200: { slidesPerView: 4 } }
+            });
+
+            new Swiper('.news-slider', {
+                slidesPerView: 1, spaceBetween: 30, loop: {{ isset($news) && $news->count() > 1 ? 'true' : 'false' }},
+                autoplay: { delay: 4000, disableOnInteraction: false },
+                navigation: { nextEl: '.news-next', prevEl: '.news-prev' },
+                breakpoints: { 768: { slidesPerView: 2 }, 992: { slidesPerView: 3 } }
             });
         });
     </script>

@@ -1,0 +1,283 @@
+diff --git a/resources/views/Layout/Partial/mobile-nav.blade.php b/resources/views/Layout/Partial/mobile-nav.blade.php
+index b615175..050e501 100644
+--- a/resources/views/Layout/Partial/mobile-nav.blade.php
++++ b/resources/views/Layout/Partial/mobile-nav.blade.php
+@@ -1,60 +1,9 @@
+-{{-- Navbar HP: berubah jadi panel geser dari kiri (seperti RAKSAKTI), bukan dropdown penuh di tengah. --}}
++{{-- Navbar HP: dropdown biasa di bawah navbar (bukan panel geser), tapi rata kiri, bukan di tengah. --}}
+ <style>
+     @media (max-width: 991.98px) {
+-        .navbar-collapse {
+-            display: block !important;
+-            position: fixed;
+-            top: 0;
+-            left: 0;
+-            width: 78vw;
+-            max-width: 300px;
+-            height: 100vh;
+-            background-color: #1b2430;
+-            padding: 90px 24px 24px;
+-            overflow-y: auto;
+-            transform: translateX(-100%);
+-            transition: transform 0.3s ease;
+-            visibility: hidden;
+-            z-index: 1045;
+-        }
+-        .navbar-collapse.show { transform: translateX(0); visibility: visible; }
+-        .navbar-collapse .navbar-nav { align-items: flex-start !important; width: 100%; }
+-        .navbar-collapse .nav-item { width: 100%; }
+-        .navbar-collapse .nav-link {
+-            color: rgba(255,255,255,0.85) !important;
+-            text-transform: none !important;
+-            letter-spacing: normal !important;
+-            font-size: 1rem !important;
+-            padding: 12px 0 !important;
+-            margin: 0 !important;
+-            border-bottom: 1px solid rgba(255,255,255,0.08);
+-        }
+-        .navbar-collapse .nav-link:hover, .navbar-collapse .nav-link.active { color: #fff !important; }
+-        .navbar-collapse .nav-link::after { display: none !important; }
+-        .navbar-collapse form { margin-top: 12px; }
+-        .nav-drawer-backdrop {
+-            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55);
+-            z-index: 1040; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+-        }
+-        .nav-drawer-backdrop.show { opacity: 1; pointer-events: auto; }
++        .navbar-nav { align-items: flex-start !important; }
++        .navbar-nav .nav-item { width: 100%; }
++        .navbar-nav .nav-link { text-align: left !important; width: 100%; padding-top: 10px !important; padding-bottom: 10px !important; }
++        .navbar-collapse form { margin-top: 8px; }
+     }
+ </style>
+-<script>
+-    document.addEventListener('DOMContentLoaded', function () {
+-        var toggler = document.querySelector('.navbar-toggler');
+-        var menu = document.querySelector('.navbar-collapse');
+-        if (!toggler || !menu || typeof bootstrap === 'undefined') return;
+-
+-        var backdrop = document.createElement('div');
+-        backdrop.className = 'nav-drawer-backdrop';
+-        document.body.appendChild(backdrop);
+-
+-        var collapse = bootstrap.Collapse.getOrCreateInstance(menu, { toggle: false });
+-        menu.addEventListener('shown.bs.collapse', function () { backdrop.classList.add('show'); });
+-        menu.addEventListener('hidden.bs.collapse', function () { backdrop.classList.remove('show'); });
+-        backdrop.addEventListener('click', function () { collapse.hide(); });
+-        menu.querySelectorAll('.nav-link').forEach(function (link) {
+-            link.addEventListener('click', function () { collapse.hide(); });
+-        });
+-    });
+-</script>
+diff --git a/resources/views/products.blade.php b/resources/views/products.blade.php
+index 26fee06..7717a21 100644
+--- a/resources/views/products.blade.php
++++ b/resources/views/products.blade.php
+@@ -67,10 +67,25 @@
+         .banner-text { position: relative; z-index: 1; color: white; padding-left: 5%; }
+         
+         .sidebar-title { color: #2A6CA2; font-weight: 700; font-size: 1.3rem; margin-bottom: 0.5rem; }
+-        .sidebar-list { list-style: none; padding: 0; }
++        .sidebar-list { list-style: none; padding: 0; margin: 0; }
+         .sidebar-list li { margin-bottom: 10px; }
+         .sidebar-list a { color: #4a5568; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: 0.3s; }
+         .sidebar-list a:hover, .sidebar-list a.active { color: #2A6CA2; }
++
++        .toolbar-row { display: flex; justify-content: space-between; align-items: center; }
++
++        /* HP: filter jadi baris chip yang ringkas (bisa digeser), bukan daftar panjang ke bawah */
++        @media (max-width: 767.98px) {
++            .sidebar-title { font-size: 0.95rem; margin-bottom: 8px; }
++            .sidebar-title.mt-md-4 { margin-top: 14px !important; }
++            .sidebar-hr { display: none; }
++            .sidebar-list { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
++            .sidebar-list li { margin-bottom: 0; flex: 0 0 auto; }
++            .sidebar-list a { display: inline-block; padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 999px; font-size: 0.82rem; white-space: nowrap; }
++            .sidebar-list a.active { background-color: #2A6CA2; color: #fff !important; border-color: #2A6CA2; }
++
++            .toolbar-row { flex-direction: column; align-items: flex-start !important; gap: 8px; }
++        }
+         
+         .product-grid-card { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; transition: transform 0.3s, box-shadow 0.3s; background: #fff; }
+         .product-grid-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
+@@ -174,16 +189,16 @@
+ 
+     <div class="container mb-5 pb-5">
+         <div class="row">
+-            {{-- Di HP, produk tampil duluan; filter menyusul di bawah supaya tak perlu scroll dulu. --}}
+-            <div class="col-lg-3 col-md-4 mb-4 order-2 order-md-1 animate-sidebar">
++            {{-- Filter tetap di atas, tapi ringkas (chip horizontal) di HP supaya produk cepat terlihat. --}}
++            <div class="col-lg-3 col-md-4 mb-4 animate-sidebar">
+                 <h4 class="sidebar-title">Browse by</h4>
+-                <hr style="border-color: #cbd5e1; opacity: 1;">
++                <hr class="sidebar-hr" style="border-color: #cbd5e1; opacity: 1;">
+                 <ul class="sidebar-list">
+                     <li><a href="{{ url('/products') }}" class="{{ ! $status && ! request('search') ? 'active' : '' }}">All Products</a></li>
+                 </ul>
+ 
+-                <h4 class="sidebar-title mt-4">Status</h4>
+-                <hr style="border-color: #cbd5e1; opacity: 1;">
++                <h4 class="sidebar-title mt-md-4">Status</h4>
++                <hr class="sidebar-hr" style="border-color: #cbd5e1; opacity: 1;">
+                 <ul class="sidebar-list">
+                     <li><a href="{{ url('/products') }}" class="{{ ! $status ? 'active' : '' }}">Semua status</a></li>
+                     @foreach(\App\Models\Product::AVAILABILITY_LABELS as $val => $label)
+@@ -192,20 +207,20 @@
+                 </ul>
+             </div>
+ 
+-            <div class="col-lg-9 col-md-8 order-1 order-md-2 animate-grid">
++            <div class="col-lg-9 col-md-8 animate-grid">
+                 
+                 <form action="{{ url('/products') }}" method="GET" id="filterForm">
+                     @if($status)<input type="hidden" name="status" value="{{ $status }}">@endif
+-                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+-                        <h3 class="fw-bold mb-2 mb-md-0" style="color: #2A6CA2;">All products</h3>
++                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
++                        <h3 class="fw-bold mb-0" style="color: #2A6CA2;">All products</h3>
+                         
+-                        <div class="input-group shadow-sm" style="width: 250px;">
++                        <div class="input-group shadow-sm" style="max-width: 250px;">
+                             <input type="text" name="search" value="{{ request('search') }}" class="form-control border-0 text-white" placeholder="Search products..." style="background-color: #2A6CA2;">
+                             <button class="btn btn-primary" type="submit" style="background-color: #1e4e78; border: none;"><i class="bi bi-search"></i></button>
+                         </div>
+                     </div>
+                     
+-                    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
++                    <div class="toolbar-row mb-4 pb-2 border-bottom">
+                         <span class="text-muted small fw-medium">Menampilkan {{ $products->count() }} produk</span>
+                         
+                         <div class="d-flex align-items-center">
+diff --git a/resources/views/welcome.blade.php b/resources/views/welcome.blade.php
+index 6f4e987..af57a49 100644
+--- a/resources/views/welcome.blade.php
++++ b/resources/views/welcome.blade.php
+@@ -78,8 +78,12 @@
+         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+         .section-title { font-weight: 700; color: #2d3748; text-transform: uppercase; margin-bottom: 5px; font-size: 2.2rem; }
+         .section-title-underline { width: 80px; height: 4px; background-color: #2A6CA2; border-radius: 2px; }
+-        .slider-nav button { background: none; border: 2px solid #2A6CA2; color: #2A6CA2; border-radius: 50%; width: 45px; height: 45px; display: inline-flex; align-items: center; justify-content: center; transition: 0.3s; margin-left: 10px; cursor: pointer; }
++        .slider-nav { display: flex; flex-direction: row; align-items: center; gap: 10px; flex-shrink: 0; }
++        .slider-nav button { background: none; border: 2px solid #2A6CA2; color: #2A6CA2; border-radius: 50%; width: 45px; height: 45px; display: inline-flex; align-items: center; justify-content: center; transition: 0.3s; cursor: pointer; flex-shrink: 0; }
+         .slider-nav button:hover { background: #2A6CA2; color: #fff; }
++        @media (max-width: 576px) {
++            .slider-nav button { width: 38px; height: 38px; }
++        }
+ 
+         .hover-lift { transition: transform 0.3s ease, box-shadow 0.3s ease; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; }
+         .hover-lift:hover { transform: translateY(-8px); box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1) !important; border-color: transparent; }
+@@ -162,12 +166,13 @@
+             }
+         }
+ 
+-        /* Hero dan foto About Us disamakan tingginya di HP, supaya tidak terasa timpang. */
++        /* Hero (gambar yang diunggah admin) harus tampil UTUH di HP, tidak terpotong. */
++        #heroCarousel .carousel-inner { background-color: #eaf1f8; border-radius: 20px; }
+         @media (max-width: 768px) {
+             #heroCarousel .hero-img {
+-                height: 260px !important;
+-                max-height: 260px !important;
+-                object-fit: cover !important;
++                height: 300px !important;
++                max-height: 300px !important;
++                object-fit: contain !important;
+             }
+             #about img {
+                 width: 100% !important;
+@@ -175,9 +180,15 @@
+                 max-height: 260px !important;
+                 object-fit: cover !important;
+             }
+-            #about { padding: 50px 0 !important; }
++            #about { padding: 40px 0 !important; }
+             .about-title { font-size: 2.4rem !important; }
+             .about-subtitle { font-size: 1.15rem !important; }
++
++            /* Jarak antar section dirapatkan supaya pelanggan tak perlu scroll jauh */
++            #hero { padding: 16px 0 30px 0 !important; }
++            #products, #news { padding: 36px 0 !important; }
++            .section-header { margin-bottom: 20px !important; }
++            .swiper { padding-bottom: 30px !important; padding-top: 6px !important; }
+         }
+         
+         /* 1. Kunci layar agar tidak bisa digeser ke kanan (hilangkan ruang putih) */
+@@ -387,36 +398,45 @@
+ 
+     <section id="news" class="bg-pattern-dark">
+         <div class="container">
+-            <div class="section-header mb-5">
++            <div class="section-header">
+                 <div>
+                     <h2 class="section-title text-white">News</h2>
+                     <div class="section-title-underline" style="background-color: #ffffff;"></div>
+                 </div>
++                @if(isset($news) && $news->count() > 1)
++                <div class="slider-nav">
++                    <button class="news-prev"><i class="bi bi-arrow-left"></i></button>
++                    <button class="news-next"><i class="bi bi-arrow-right"></i></button>
++                </div>
++                @endif
+             </div>
+-            <div class="row">
+-                @if(isset($news) && $news->count() > 0)
+-                    @foreach($news as $item)
+-                    <div class="col-lg-4 col-md-6 mb-4">
+-                        <a href="{{ route('news.detail', $item->id) }}" class="text-decoration-none">
+-                            <div class="card h-100 border-0 shadow-sm hover-lift">
+-                                <img src="{{ asset('storage/' . $item->image) }}" class="card-img-top news-img" alt="{{ $item->title }}">
+-                                <div class="card-body p-4 d-flex flex-column text-start">
+-                                    <span class="text-primary fw-bold mb-2" style="font-size: 0.85rem;"><i class="bi bi-calendar3 me-2"></i>{{ \Carbon\Carbon::parse($item->published_date ?? $item->created_at)->translatedFormat('d M Y') }}</span>
+-                                    <h5 class="fw-bold text-dark mb-3" style="font-size: 1.2rem;">{{ Str::limit($item->title, 50) }}</h5>
+-                                    <p class="text-muted flex-grow-1" style="font-size: 0.95rem;">{!! Str::limit(strip_tags($item->content), 90) !!}</p>
+-                                    <span class="mt-auto text-primary fw-bold" style="font-size: 0.95rem;">Baca Selengkapnya <i class="bi bi-arrow-right"></i></span>
++
++            <div class="swiper news-slider">
++                <div class="swiper-wrapper">
++                    @if(isset($news) && $news->count() > 0)
++                        @foreach($news as $item)
++                        <div class="swiper-slide h-auto">
++                            <a href="{{ route('news.detail', $item->id) }}" class="text-decoration-none">
++                                <div class="card h-100 border-0 shadow-sm hover-lift">
++                                    <img src="{{ asset('storage/' . $item->image) }}" class="card-img-top news-img" alt="{{ $item->title }}">
++                                    <div class="card-body p-4 d-flex flex-column text-start">
++                                        <span class="text-primary fw-bold mb-2" style="font-size: 0.85rem;"><i class="bi bi-calendar3 me-2"></i>{{ \Carbon\Carbon::parse($item->published_date ?? $item->created_at)->translatedFormat('d M Y') }}</span>
++                                        <h5 class="fw-bold text-dark mb-3" style="font-size: 1.2rem;">{{ Str::limit($item->title, 50) }}</h5>
++                                        <p class="text-muted flex-grow-1" style="font-size: 0.95rem;">{!! Str::limit(strip_tags($item->content), 90) !!}</p>
++                                        <span class="mt-auto text-primary fw-bold" style="font-size: 0.95rem;">Baca Selengkapnya <i class="bi bi-arrow-right"></i></span>
++                                    </div>
+                                 </div>
+-                            </div>
+-                        </a>
+-                    </div>
+-                    @endforeach
+-                @else
+-                    <div class="col-12"><p class="text-white text-center">Belum ada berita.</p></div>
+-                @endif
++                            </a>
++                        </div>
++                        @endforeach
++                    @else
++                        <div class="swiper-slide"><p class="text-white text-center">Belum ada berita.</p></div>
++                    @endif
++                </div>
+             </div>
+ 
+             @if(isset($news) && $news->count() > 0)
+-            <div class="text-center mt-5">
++            <div class="text-center mt-4">
+                 <a href="{{ route('news.index') }}" class="btn btn-outline-light px-5 py-2 rounded-pill fw-bold" style="border-width: 2px;">
+                     Berita Lainnya <i class="bi bi-arrow-right ms-2"></i>
+                 </a>
+@@ -546,6 +566,13 @@
+                 navigation: { nextEl: '.sponsor-next', prevEl: '.sponsor-prev' },
+                 breakpoints: { 576: { slidesPerView: 1 }, 768: { slidesPerView: 2 }, 992: { slidesPerView: 3 }, 1200: { slidesPerView: 4 } }
+             });
++
++            new Swiper('.news-slider', {
++                slidesPerView: 1, spaceBetween: 30, loop: {{ isset($news) && $news->count() > 1 ? 'true' : 'false' }},
++                autoplay: { delay: 4000, disableOnInteraction: false },
++                navigation: { nextEl: '.news-next', prevEl: '.news-prev' },
++                breakpoints: { 768: { slidesPerView: 2 }, 992: { slidesPerView: 3 } }
++            });
+         });
+     </script>
+ </body>

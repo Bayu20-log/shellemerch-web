@@ -67,10 +67,25 @@
         .banner-text { position: relative; z-index: 1; color: white; padding-left: 5%; }
         
         .sidebar-title { color: #2A6CA2; font-weight: 700; font-size: 1.3rem; margin-bottom: 0.5rem; }
-        .sidebar-list { list-style: none; padding: 0; }
+        .sidebar-list { list-style: none; padding: 0; margin: 0; }
         .sidebar-list li { margin-bottom: 10px; }
         .sidebar-list a { color: #4a5568; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: 0.3s; }
         .sidebar-list a:hover, .sidebar-list a.active { color: #2A6CA2; }
+
+        .toolbar-row { display: flex; justify-content: space-between; align-items: center; }
+
+        /* HP: filter jadi baris chip yang ringkas (bisa digeser), bukan daftar panjang ke bawah */
+        @media (max-width: 767.98px) {
+            .sidebar-title { font-size: 0.95rem; margin-bottom: 8px; }
+            .sidebar-title.mt-md-4 { margin-top: 14px !important; }
+            .sidebar-hr { display: none; }
+            .sidebar-list { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+            .sidebar-list li { margin-bottom: 0; flex: 0 0 auto; }
+            .sidebar-list a { display: inline-block; padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 999px; font-size: 0.82rem; white-space: nowrap; }
+            .sidebar-list a.active { background-color: #2A6CA2; color: #fff !important; border-color: #2A6CA2; }
+
+            .toolbar-row { flex-direction: column; align-items: flex-start !important; gap: 8px; }
+        }
         
         .product-grid-card { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; transition: transform 0.3s, box-shadow 0.3s; background: #fff; }
         .product-grid-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
@@ -174,16 +189,16 @@
 
     <div class="container mb-5 pb-5">
         <div class="row">
-            {{-- Di HP, produk tampil duluan; filter menyusul di bawah supaya tak perlu scroll dulu. --}}
-            <div class="col-lg-3 col-md-4 mb-4 order-2 order-md-1 animate-sidebar">
+            {{-- Filter tetap di atas, tapi ringkas (chip horizontal) di HP supaya produk cepat terlihat. --}}
+            <div class="col-lg-3 col-md-4 mb-4 animate-sidebar">
                 <h4 class="sidebar-title">Browse by</h4>
-                <hr style="border-color: #cbd5e1; opacity: 1;">
+                <hr class="sidebar-hr" style="border-color: #cbd5e1; opacity: 1;">
                 <ul class="sidebar-list">
                     <li><a href="{{ url('/products') }}" class="{{ ! $status && ! request('search') ? 'active' : '' }}">All Products</a></li>
                 </ul>
 
-                <h4 class="sidebar-title mt-4">Status</h4>
-                <hr style="border-color: #cbd5e1; opacity: 1;">
+                <h4 class="sidebar-title mt-md-4">Status</h4>
+                <hr class="sidebar-hr" style="border-color: #cbd5e1; opacity: 1;">
                 <ul class="sidebar-list">
                     <li><a href="{{ url('/products') }}" class="{{ ! $status ? 'active' : '' }}">Semua status</a></li>
                     @foreach(\App\Models\Product::AVAILABILITY_LABELS as $val => $label)
@@ -192,20 +207,20 @@
                 </ul>
             </div>
 
-            <div class="col-lg-9 col-md-8 order-1 order-md-2 animate-grid">
+            <div class="col-lg-9 col-md-8 animate-grid">
                 
                 <form action="{{ url('/products') }}" method="GET" id="filterForm">
                     @if($status)<input type="hidden" name="status" value="{{ $status }}">@endif
-                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-                        <h3 class="fw-bold mb-2 mb-md-0" style="color: #2A6CA2;">All products</h3>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                        <h3 class="fw-bold mb-0" style="color: #2A6CA2;">All products</h3>
                         
-                        <div class="input-group shadow-sm" style="width: 250px;">
+                        <div class="input-group shadow-sm" style="max-width: 250px;">
                             <input type="text" name="search" value="{{ request('search') }}" class="form-control border-0 text-white" placeholder="Search products..." style="background-color: #2A6CA2;">
                             <button class="btn btn-primary" type="submit" style="background-color: #1e4e78; border: none;"><i class="bi bi-search"></i></button>
                         </div>
                     </div>
                     
-                    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+                    <div class="toolbar-row mb-4 pb-2 border-bottom">
                         <span class="text-muted small fw-medium">Menampilkan {{ $products->count() }} produk</span>
                         
                         <div class="d-flex align-items-center">
