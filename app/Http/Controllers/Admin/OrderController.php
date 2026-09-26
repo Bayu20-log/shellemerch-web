@@ -161,6 +161,13 @@ class OrderController extends Controller
             default => [],
         };
 
+        if ($action === 'cancel') {
+            $order->load('items');
+            foreach ($order->items as $item) {
+                $this->restoreItemStock($item);
+            }
+        }
+
         try {
             $order->transitionTo($rule['to'], $request->user(), $data['note'] ?? null, $attributes);
         } catch (InvalidOrderTransition $e) {
@@ -168,6 +175,16 @@ class OrderController extends Controller
         }
 
         return redirect()->route('admin.orders.show', $order)->with('success', $rule['message']);
+    }
+
+    // Mengembalikan stok satu item (pin custom atau produk katalog) ke sumbernya, jika stoknya dilacak.
+    private function restoreItemStock(OrderItem $item): void
+    {
+        if ($item->pin_size_id) {
+            \App\Models\PinSize::find($item->pin_size_id)?->restoreStock($item->quantity);
+        } elseif ($item->product_id) {
+            \App\Models\Product::find($item->product_id)?->restoreStock($item->quantity);
+        }
     }
 
     /** Filter dari URL. Nilai yang tidak valid diabaikan, bukan menyebabkan error. */

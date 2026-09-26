@@ -9,7 +9,7 @@ class PinSize extends Model
 {
     use HasAvailability;
 
-    protected $fillable = ['name', 'price', 'is_active', 'availability'];
+    protected $fillable = ['name', 'price', 'is_active', 'availability', 'stock'];
 
     protected function casts(): array
     {

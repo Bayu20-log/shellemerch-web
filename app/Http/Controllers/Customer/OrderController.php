@@ -72,6 +72,11 @@ class OrderController extends Controller
         ]);
 
         $size = PinSize::active()->orderable()->findOrFail($data['pin_size_id']);
+
+        if ($size->tracksStock() && $data['quantity'] > $size->stock) {
+            return back()->withErrors(['quantity' => "Stok ukuran ini tersisa {$size->stock} pcs."])->withInput();
+        }
+
         $path = $request->file('design')->store('designs', 'local'); // disk privat, tidak bisa dibuka lewat URL langsung
 
         try {
@@ -87,6 +92,8 @@ class OrderController extends Controller
             Storage::disk('local')->delete($path);
             throw $e;
         }
+
+        $size->decrementStock($data['quantity']);
 
         return redirect()->route('customer.orders.show', $order)->with('success', $reopened
             ? 'Item ditambahkan. Pesanan kembali ke draft, lanjutkan ke pembayaran setelah selesai menambah.'
@@ -107,6 +114,10 @@ class OrderController extends Controller
             'quantity.max' => 'Jumlah maksimal 1000 per item.',
         ]);
 
+        if ($product->tracksStock() && $data['quantity'] > $product->stock) {
+            return back()->withErrors(['quantity' => "Stok produk ini tersisa {$product->stock} pcs."])->withInput();
+        }
+
         [$order, $reopened] = $this->addItemToDraft($request, [
             'product_id' => $product->id,
             'size_name' => $product->name,
@@ -115,6 +126,8 @@ class OrderController extends Controller
             'design_path' => null,
             'notes' => $data['notes'] ?? null,
         ]);
+
+        $product->decrementStock($data['quantity']);
 
         return redirect()->route('customer.orders.show', $order)->with('success', $reopened
             ? 'Item ditambahkan. Pesanan kembali ke draft, lanjutkan ke pembayaran setelah selesai menambah.'
@@ -176,6 +189,8 @@ class OrderController extends Controller
         if (! $order->isEditable()) {
             return back()->withErrors(['order' => 'Pesanan ini sudah tidak bisa diubah.']);
         }
+
+        $this->restoreItemStock($item);
 
         if ($item->design_path) {
             Storage::disk('local')->delete($item->design_path);
@@ -258,7 +273,24 @@ class OrderController extends Controller
     {
         $this->authorizeOwner($request, $order);
 
+        if ($order->status === Order::STATUS_WAITING_PAYMENT) {
+            $order->load('items');
+            foreach ($order->items as $item) {
+                $this->restoreItemStock($item);
+            }
+        }
+
         return $this->move($order, Order::STATUS_WAITING_PAYMENT, Order::STATUS_CANCELLED, $request, 'Dibatalkan oleh pelanggan', [], 'Pesanan dibatalkan.');
+    }
+
+    // Mengembalikan stok satu item (pin custom atau produk katalog) ke sumbernya, jika stoknya dilacak.
+    private function restoreItemStock(OrderItem $item): void
+    {
+        if ($item->pin_size_id) {
+            PinSize::find($item->pin_size_id)?->restoreStock($item->quantity);
+        } elseif ($item->product_id) {
+            Product::find($item->product_id)?->restoreStock($item->quantity);
+        }
     }
 
     // Foto desain (khusus item pin custom) hanya bisa dibuka pemilik pesanan atau admin.

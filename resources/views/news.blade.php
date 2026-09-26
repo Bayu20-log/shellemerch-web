@@ -53,11 +53,33 @@
         }
         /* ================================================== */
 
-        .news-header { padding: 80px 0 50px; text-align: center; }
-        .news-title-main { font-size: 3rem; font-weight: 800; color: #2A6CA2; text-transform: uppercase; margin-bottom: 15px; }
+        .news-header { padding: 70px 0 40px; text-align: center; }
+        .news-eyebrow { display: inline-block; background: #eef4fa; color: #2A6CA2; font-weight: 700; font-size: 0.8rem; letter-spacing: 1px; text-transform: uppercase; padding: 6px 18px; border-radius: 999px; margin-bottom: 16px; }
+        .news-title-main { font-size: 3rem; font-weight: 800; color: #2A6CA2; text-transform: uppercase; margin-bottom: 6px; }
+        .news-title-underline { width: 70px; height: 4px; background-color: #2A6CA2; margin: 0 auto 18px; border-radius: 2px; }
         .news-subtitle { font-size: 1.1rem; color: #4a5568; max-width: 600px; margin: 0 auto; line-height: 1.7; }
 
         .section-news-list { padding-bottom: 90px; }
+
+        /* Artikel terbaru ditonjolkan sebagai kartu besar horizontal, terpisah dari grid biasa */
+        .featured-news { border: none; border-radius: 20px; overflow: hidden; background: #ffffff; box-shadow: 0 15px 35px rgba(42, 108, 162, 0.1); display: flex; flex-direction: column; }
+        .featured-news:hover { box-shadow: 0 20px 45px rgba(42, 108, 162, 0.18); }
+        .featured-news .featured-img-wrapper { position: relative; width: 100%; aspect-ratio: 16/9; overflow: hidden; background: #e2e8f0; }
+        .featured-news .featured-img-wrapper img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+        .featured-news:hover .featured-img-wrapper img { transform: scale(1.04); }
+        .featured-badge { position: absolute; top: 16px; left: 16px; background: #2A6CA2; color: #fff; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.5px; text-transform: uppercase; padding: 6px 14px; border-radius: 999px; }
+        .featured-news .featured-body { padding: 28px 30px 30px; }
+        @media (min-width: 992px) {
+            .featured-news { flex-direction: row; }
+            .featured-news .featured-img-wrapper { width: 48%; aspect-ratio: auto; }
+            .featured-news .featured-body { width: 52%; display: flex; flex-direction: column; justify-content: center; }
+        }
+        .featured-title { font-size: 1.6rem; font-weight: 800; color: #1e293b; margin-bottom: 14px; line-height: 1.35; }
+        .featured-news:hover .featured-title { color: #2A6CA2; }
+
+        .news-card { position: relative; }
+        .news-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #2A6CA2; transform: scaleX(0); transform-origin: left; transition: transform 0.3s ease; z-index: 2; }
+        .news-card:hover::before { transform: scaleX(1); }
         .news-card { border: none; border-radius: 16px; overflow: hidden; background: #ffffff; box-shadow: 0 10px 25px rgba(0,0,0,0.04); transition: transform 0.3s ease, box-shadow 0.3s ease; display: flex; flex-direction: column; height: 100%; }
         .news-card:hover { transform: translateY(-8px); box-shadow: 0 15px 35px rgba(42, 108, 162, 0.15); }
         .news-img-wrapper { width: 100%; aspect-ratio: 16/10; overflow: hidden; background: #e2e8f0; }
@@ -170,42 +192,66 @@
         <section class="news-header">
             <div class="container">
                 <h1 class="news-title-main">NEWS</h1>
+                <div class="news-title-underline"></div>
                 <p class="news-subtitle">Temukan informasi terbaru, artikel inspiratif, dan perkembangan terkini seputar dunia Shellemerch dan industri kreatif daur ulang.</p>
             </div>
         </section>
 
         <section class="section-news-list">
             <div class="container">
-                <div class="row g-4">
-                    
-                    @forelse ($news as $item)
-                    <div class="col-lg-4 col-md-6"> 
-                        <a href="{{ route('news.detail', $item->id) }}" class="text-decoration-none">
-                            <div class="news-card"> 
-                                <div class="news-img-wrapper">
-                                    <img src="{{ asset('storage/' . $item->image) }}" class="news-img" alt="{{ $item->title }}">
+                @if($news->isEmpty())
+                    <p class="text-center text-muted">Belum ada berita yang diterbitkan dari Admin.</p>
+                @else
+                    @if($news->currentPage() === 1)
+                        @php $featured = $news->first(); @endphp
+                        <a href="{{ route('news.detail', $featured->id) }}" class="text-decoration-none d-block mb-5">
+                            <div class="featured-news">
+                                <div class="featured-img-wrapper">
+                                    <span class="featured-badge">Terbaru</span>
+                                    <img src="{{ asset('storage/' . $featured->image) }}" alt="{{ $featured->title }}">
                                 </div>
-                                <div class="news-body">
-                                    <span class="news-date"> 
-                                        <i class="bi bi-calendar3"></i> {{ \Carbon\Carbon::parse($item->published_date ?? $item->created_at)->translatedFormat('d F Y') }}
+                                <div class="featured-body">
+                                    <span class="news-date">
+                                        <i class="bi bi-calendar3"></i> {{ \Carbon\Carbon::parse($featured->published_date ?? $featured->created_at)->translatedFormat('d F Y') }}
                                     </span>
-                                    <h5 class="news-title">{{ $item->title }}</h5>
-                                    <p class="news-excerpt">{!! Str::limit(strip_tags($item->content), 100) !!}</p>
+                                    <h2 class="featured-title">{{ $featured->title }}</h2>
+                                    <p class="news-excerpt">{!! Str::limit(strip_tags($featured->content), 160) !!}</p>
                                     <span class="btn-read-more">
                                         Baca Selengkapnya <i class="bi bi-arrow-right"></i>
-                                    </span> 
+                                    </span>
                                 </div>
                             </div>
                         </a>
-                    </div>
-                    @empty
-                        <div class="col-12"><p class="text-center text-muted">Belum ada berita yang diterbitkan dari Admin.</p></div>
-                    @endforelse
+                    @endif
 
-                </div>
+                    <div class="row g-4">
+                        @foreach ($news as $item)
+                            @continue($news->currentPage() === 1 && $loop->first)
+                            <div class="col-lg-4 col-md-6">
+                                <a href="{{ route('news.detail', $item->id) }}" class="text-decoration-none">
+                                    <div class="news-card">
+                                        <div class="news-img-wrapper">
+                                            <img src="{{ asset('storage/' . $item->image) }}" class="news-img" alt="{{ $item->title }}">
+                                        </div>
+                                        <div class="news-body">
+                                            <span class="news-date">
+                                                <i class="bi bi-calendar3"></i> {{ \Carbon\Carbon::parse($item->published_date ?? $item->created_at)->translatedFormat('d F Y') }}
+                                            </span>
+                                            <h5 class="news-title">{{ $item->title }}</h5>
+                                            <p class="news-excerpt">{!! Str::limit(strip_tags($item->content), 100) !!}</p>
+                                            <span class="btn-read-more">
+                                                Baca Selengkapnya <i class="bi bi-arrow-right"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
 
                 <div class="mt-5 d-flex justify-content-center">
-                    @if(isset($news) && $news->hasPages())
+                    @if($news->hasPages())
                         {{ $news->links('pagination::bootstrap-5') }} 
                     @endif
                 </div>

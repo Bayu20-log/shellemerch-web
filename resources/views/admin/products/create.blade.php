@@ -28,6 +28,11 @@
                             </select>
                         </div>
                         <div class="mb-3">
+                            <label for="stock" class="form-label">Stok <span class="text-muted small">(kosongkan jika tidak dilacak/tak terbatas)</span></label>
+                            <input type="number" class="form-control" id="stock" name="stock" min="0" value="{{ old('stock') }}" placeholder="Kosongkan = tak terbatas">
+                            <div class="form-text">Diisi 0 akan otomatis membuat status menjadi "Habis". Berkurang otomatis tiap kali dipesan.</div>
+                        </div>
+                        <div class="mb-3">
                             <label for="image" class="form-label">Gambar Produk</label>
                             <input type="file" class="form-control" id="imageInput" name="image" accept="image/*" required>
                             

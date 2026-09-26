@@ -46,7 +46,7 @@
                     <li class="nav-item"><a class="nav-link" href="{{ route('beranda') }}">Home</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ route('products') }}">Products</a></li>
                     <li class="nav-item"><a class="nav-link {{ request()->routeIs('customer.orders.*') ? 'active' : '' }}" href="{{ route('customer.orders.index') }}">Pesanan Saya</a></li>
-                    <li class="nav-item ms-lg-3 d-flex align-items-center gap-2">
+                    <li class="nav-item ms-lg-3 d-flex align-items-center justify-content-between justify-content-lg-start gap-2">
                         <span class="small text-muted">{{ auth()->user()->name }}</span>
                         <form action="{{ route('logout') }}" method="POST" class="d-inline">
                             @csrf

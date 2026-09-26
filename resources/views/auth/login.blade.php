@@ -65,7 +65,10 @@
                             <input type="email" name="email" class="form-control" value="{{ old('email') }}" placeholder="Masukkan email..." required autofocus>
                         </div>
                         <div class="mb-4">
-                            <label class="form-label text-muted small fw-bold ms-2">Password</label>
+                            <div class="d-flex justify-content-between align-items-center ms-2 me-2">
+                                <label class="form-label text-muted small fw-bold mb-1">Password</label>
+                                <a href="{{ route('password.request') }}" class="small text-decoration-none mb-1" style="color: #2A6CA2;">Lupa password?</a>
+                            </div>
                             <input type="password" name="password" class="form-control" placeholder="Masukkan password..." required>
                         </div>
                         <button type="submit" class="btn btn-primary w-100 shadow-sm">Masuk</button>

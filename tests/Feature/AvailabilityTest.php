@@ -63,6 +63,26 @@ class AvailabilityTest extends TestCase
 
     // ---------- Produk ----------
 
+    // Bug lama: rumus is_active di controller admin membuat ukuran "Segera hadir" yang
+    // dibuat lewat form admin sungguhan (bukan lewat tes) ikut disembunyikan total, padahal
+    // seharusnya tetap tampil sebagai pratinjau nonaktif seperti pada halaman pemesanan.
+    public function test_pin_size_marked_coming_soon_through_the_real_admin_form_still_shows_as_preview(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $customer = User::factory()->create();
+
+        $this->actingAs($admin)->post(route('admin.pin-sizes.store'), [
+            'name' => 'Edisi Baru', 'price' => 6000, 'availability' => 'segera',
+        ])->assertSessionHasNoErrors();
+
+        $size = PinSize::firstOrFail();
+        $this->assertTrue($size->is_active);
+        $this->assertSame('segera', $size->availability);
+
+        $this->actingAs($customer)->get(route('customer.orders.create'))
+            ->assertOk()->assertSee('Edisi Baru')->assertSee('Segera hadir');
+    }
+
     public function test_only_orderable_products_are_listed_for_customer_ordering(): void
     {
         $user = User::factory()->create();

@@ -9,5 +9,5 @@ class Product extends Model
 {
     use HasAvailability;
 
-    protected $fillable = ['image', 'name', 'price', 'description', 'availability'];
+    protected $fillable = ['image', 'name', 'price', 'description', 'availability', 'stock'];
 }

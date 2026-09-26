@@ -29,6 +29,11 @@
                             </select>
                         </div>
                         <div class="mb-3">
+                            <label for="stock" class="form-label">Stok <span class="text-muted small">(kosongkan jika tidak dilacak/tak terbatas)</span></label>
+                            <input type="number" class="form-control" id="stock" name="stock" min="0" value="{{ old('stock', $product->stock) }}" placeholder="Kosongkan = tak terbatas">
+                            <div class="form-text">Diisi 0 akan otomatis membuat status menjadi "Habis". Berkurang otomatis tiap kali dipesan.</div>
+                        </div>
+                        <div class="mb-3">
                             <label for="image" class="form-label">Gambar Produk Baru (Kosongkan jika tidak ingin mengganti gambar)</label>
                             <br>
                             <img id="imagePreview" src="{{ asset('storage/' . $product->image) }}" alt="Gambar Produk" class="img-thumbnail mb-2" style="max-height: 200px;">

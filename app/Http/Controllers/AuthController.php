@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 
 class AuthController extends Controller
 {
@@ -95,6 +97,58 @@ class AuthController extends Controller
 
         return redirect()->route('customer.orders.index')
             ->with('success', 'Akun berhasil dibuat. Selamat datang, ' . $user->name . '!');
+    }
+
+    // Lupa password: khusus akun pelanggan. Kredensial menyertakan role, jadi Laravel
+    // hanya mencari & mengirim tautan ke akun berperan 'customer' (admin tidak bisa
+    // direset lewat jalur ini).
+    public function showForgotPasswordForm()
+    {
+        return view('auth.forgot-password');
+    }
+
+    public function sendResetLink(Request $request)
+    {
+        $request->validate(['email' => ['required', 'email']]);
+
+        Password::sendResetLink($request->only('email') + ['role' => User::ROLE_CUSTOMER]);
+
+        // Pesan selalu sama, baik email terdaftar maupun tidak, supaya tidak membocorkan
+        // email mana yang punya akun.
+        return back()->with('status', 'Jika email tersebut terdaftar sebagai akun pelanggan, kami sudah mengirim tautan atur ulang password ke email tersebut.');
+    }
+
+    public function showResetForm(Request $request, string $token)
+    {
+        return view('auth.reset-password', [
+            'token' => $token,
+            'email' => $request->query('email', ''),
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $data = $request->validate([
+            'token' => ['required'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ], [
+            'password.min' => 'Password minimal 8 karakter.',
+            'password.confirmed' => 'Konfirmasi password tidak sama.',
+        ]);
+
+        $status = Password::reset(
+            $data + ['role' => User::ROLE_CUSTOMER],
+            function (User $user, string $password) {
+                $user->forceFill(['password' => Hash::make($password)])->save();
+            }
+        );
+
+        if ($status === Password::PASSWORD_RESET) {
+            return redirect()->route('login')->with('success', 'Password berhasil diperbarui. Silakan masuk dengan password baru Anda.');
+        }
+
+        return back()->withErrors(['email' => 'Tautan atur ulang password tidak valid atau sudah kedaluwarsa.'])->onlyInput('email');
     }
 
     public function logout(Request $request)

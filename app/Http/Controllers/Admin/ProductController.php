@@ -34,7 +34,11 @@ class ProductController extends Controller
             'image' => 'required|image|mimes:jpeg,png,jpg|max:2048', // Maksimal 2MB
             'description' => 'nullable',
             'availability' => ['required', Rule::in([Product::AVAILABLE, Product::SOLD_OUT, Product::COMING_SOON])],
+            'stock' => ['nullable', 'integer', 'min:0', 'max:1000000'],
         ]);
+
+        // Stok kosong = tidak dilacak (tak terbatas). Stok diisi 0 memaksa status jadi "habis".
+        $stockFields = (new Product())->applyManualAvailability($request->stock, $request->availability);
 
         // 2. Proses upload gambar ke folder public/storage/products
         $imagePath = $request->file('image')->store('products', 'public');
@@ -45,7 +49,8 @@ class ProductController extends Controller
             'price' => $request->price,
             'image' => $imagePath,
             'description' => $request->description,
-            'availability' => $request->availability,
+            'availability' => $stockFields['availability'],
+            'stock' => $stockFields['stock'],
         ]);
 
         // 4. Kembalikan ke halaman daftar produk
@@ -75,10 +80,12 @@ class ProductController extends Controller
             'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'description' => 'nullable',
             'availability' => ['required', Rule::in([Product::AVAILABLE, Product::SOLD_OUT, Product::COMING_SOON])],
+            'stock' => ['nullable', 'integer', 'min:0', 'max:1000000'],
         ]);
 
         // 2. Siapkan data yang akan diupdate
-        $data = $request->only(['name', 'price', 'description', 'availability']);
+        $data = $request->only(['name', 'price', 'description']);
+        $data = array_merge($data, $product->applyManualAvailability($request->stock, $request->availability));
 
         // 3. Cek apakah user mengupload gambar baru
         if ($request->hasFile('image')) {

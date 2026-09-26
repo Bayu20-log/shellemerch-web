@@ -42,6 +42,12 @@ Route::get('/admin/login', [AuthController::class, 'showAdminLoginForm'])->name(
 Route::post('/admin/login', [AuthController::class, 'authenticateAdmin'])->middleware('throttle:6,1')->name('admin.login.post');
 Route::get('/daftar', [AuthController::class, 'showRegisterForm'])->name('register');
 Route::post('/daftar', [AuthController::class, 'register'])->middleware('throttle:6,1')->name('register.post');
+
+// Lupa password (khusus pelanggan)
+Route::get('/lupa-password', [AuthController::class, 'showForgotPasswordForm'])->name('password.request');
+Route::post('/lupa-password', [AuthController::class, 'sendResetLink'])->middleware('throttle:4,1')->name('password.email');
+Route::get('/reset-password/{token}', [AuthController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:6,1')->name('password.update');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Gambar QRIS toko (harus login; tanpa symlink storage)

@@ -41,7 +41,8 @@
         <span class="text-muted small ms-2">Dibuat {{ $order->created_at->translatedFormat('d M Y, H:i') }}</span>
     </div>
     @if($order->isEditable())
-        <a href="{{ route('customer.orders.create') }}" class="btn btn-outline-brand">Tambah item lagi</a>
+        @php $isProductOnly = $order->items->isNotEmpty() && $order->items->every(fn ($i) => ! $i->isCustomPin()); @endphp
+        <a href="{{ $isProductOnly ? route('customer.orders.index') : route('customer.orders.create') }}" class="btn btn-outline-brand">Tambah item lagi</a>
     @endif
 </div>
 
