@@ -13,7 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        body { font-family: 'Poppins', sans-serif; overflow-x: hidden; }
+        body { font-family: 'Poppins', sans-serif; overflow-x: clip; }
         
         @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes fadeInUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -167,7 +167,7 @@
         }
 
         /* Hero (gambar yang diunggah admin) harus tampil UTUH di HP, tidak terpotong. */
-        #heroCarousel .carousel-inner { background-color: #eaf1f8; border-radius: 20px; }
+        #heroCarousel .carousel-inner { background-color: #f8fafc; border-radius: 20px; }
         @media (max-width: 768px) {
             #heroCarousel .hero-img {
                 height: 300px !important;
@@ -185,7 +185,8 @@
             .about-subtitle { font-size: 1.15rem !important; }
 
             /* Jarak antar section dirapatkan supaya pelanggan tak perlu scroll jauh */
-            #hero { padding: 16px 0 30px 0 !important; }
+            #hero { padding: 16px 0 44px 0 !important; }
+            .carousel-indicators { bottom: -32px !important; }
             #products, #news { padding: 36px 0 !important; }
             .section-header { margin-bottom: 20px !important; }
             .swiper { padding-bottom: 30px !important; padding-top: 6px !important; }
@@ -193,7 +194,7 @@
         
         /* 1. Kunci layar agar tidak bisa digeser ke kanan (hilangkan ruang putih) */
         html, body {
-            overflow-x: hidden !important;
+            overflow-x: clip !important;
             width: 100%;
         }
         
@@ -236,6 +237,22 @@
                 max-width: 120px !important;
                 margin-bottom: 10px !important;
             }
+        }
+
+        /* 5. Footer dipadatkan lebih jauh di HP: Tautan Menu & Hubungi Kami berdampingan,
+              judul/teks/ikon dikecilkan, supaya footer tidak memakan satu layar penuh. */
+        @media (max-width: 767.98px) {
+            #footer { padding-top: 26px !important; padding-bottom: 14px !important; }
+            #footer .row > div.mb-4 { margin-bottom: 14px !important; }
+            #footer img[alt="Shellemerch Logo"] { height: 38px !important; margin-bottom: 8px !important; }
+            #footer h5 { font-size: 0.9rem !important; margin-bottom: 8px !important; margin-top: 0 !important; }
+            #footer p { font-size: 0.78rem !important; line-height: 1.4 !important; margin-bottom: 6px !important; }
+            #footer ul { line-height: 1.6 !important; }
+            #footer ul li { font-size: 0.78rem !important; margin-bottom: 3px !important; }
+            #footer .bi { font-size: 0.95rem !important; }
+            #footer .rounded-circle { width: 30px !important; height: 30px !important; }
+            #footer .mt-4 { margin-top: 10px !important; }
+            #footer hr { margin: 8px 0 !important; }
         }
         
     </style>
@@ -495,7 +512,7 @@
                     </p>
                 </div>
                 
-                <div class="col-lg-3 col-md-6 mb-4">
+                <div class="col-6 col-lg-3 mb-4">
                     <h5 class="text-uppercase fw-bold mb-4 text-white" style="letter-spacing: 1px;">Tautan Menu</h5>
                     <ul class="list-unstyled" style="line-height: 2;">
                         <li><a href="{{ url('/') }}" class="text-white-50 text-decoration-none hover-text-light">Home</a></li>
@@ -505,7 +522,7 @@
                     </ul>
                 </div>
 
-                <div class="col-lg-5 col-md-12 mb-4">
+                <div class="col-6 col-md-12 col-lg-5 mb-4">
                     <h5 class="text-uppercase fw-bold mb-4 text-white" style="letter-spacing: 1px;">Hubungi Kami</h5>
                     <p class="text-white-50 mb-3 d-flex align-items-start">
                         <i class="bi bi-geo-alt-fill me-3 mt-1 text-white" style="font-size: 1.2rem;"></i> 
